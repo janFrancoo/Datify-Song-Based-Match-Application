@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "794970935892",
+    "firebase_url": "https://datify-song-based-match-app.firebaseio.com",
+    "project_id": "datify-song-based-match-app",
+    "storage_bucket": "datify-song-based-match-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:794970935892:android:1b943554b3e9278a7553c1",
+        "android_client_info": {
+          "package_name": "com.janfranco.datifysongbasedmatchapplication"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "794970935892-uub95stlfs49vvhuujbgiobef2g93quf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcIercyfaWOb6TumN-_ka7jYvn4ot-9AM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "794970935892-uub95stlfs49vvhuujbgiobef2g93quf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
