@@ -2,6 +2,7 @@ package com.janfranco.datifysongbasedmatchapplication;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -29,22 +30,22 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.util.Map;
 import java.util.regex.Pattern;
 
 public class LoginActivity extends AppCompatActivity {
 
-    private final int PASSWORD_MIN_LEN = 5;
-    private final String EMAIL_REGEX = "^(.+)@([a-zA-Z\\d-]+)\\.([a-zA-Z]+)(\\.[a-zA-Z]+)?$";
-
     private FirebaseAuth mAuth;
     private Button loginBtn;
     private EditText eMailInput, passwordInput;
+    private ConstraintLayout layout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        layout = findViewById(R.id.loginLayout);
+        layout.setVisibility(View.INVISIBLE);
 
         loginBtn = findViewById(R.id.loginLoginBtn);
         eMailInput = findViewById(R.id.loginEmailInput);
@@ -103,8 +104,8 @@ public class LoginActivity extends AppCompatActivity {
             }
 
             private boolean filter() {
-                return Pattern.matches(EMAIL_REGEX, eMailInput.getText().toString().trim()) &&
-                        passwordInput.getText().toString().length() >= PASSWORD_MIN_LEN;
+                return Pattern.matches(Constants.EMAIL_REGEX, eMailInput.getText().toString().trim()) &&
+                        passwordInput.getText().toString().length() >= Constants.PASSWORD_MIN_LEN;
             }
         };
 
@@ -116,15 +117,10 @@ public class LoginActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
-        if (!checkInternet()) {
-            loginBtn.setEnabled(false);
-            eMailInput.setEnabled(false);
-            passwordInput.setEnabled(false);
-            Toast.makeText(this, "Check your internet connection and try again!",
-                    Toast.LENGTH_LONG).show();
-        } else if (mAuth.getCurrentUser() != null) {
+        if (mAuth.getCurrentUser() != null)
             updateCurrentUserSingleton(mAuth.getCurrentUser().getEmail());
-        }
+        else
+            layout.setVisibility(View.VISIBLE);
     }
 
     private void login() {
@@ -157,7 +153,7 @@ public class LoginActivity extends AppCompatActivity {
         sendMail.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (Pattern.matches(EMAIL_REGEX, email.getText().toString().trim()))
+                if (Pattern.matches(Constants.EMAIL_REGEX, email.getText().toString().trim()))
                     sendPasswordResetMail(email.getText().toString().trim());
                 else
                 Toast.makeText(LoginActivity.this, "Please enter an valid e-mail!",
@@ -204,14 +200,21 @@ public class LoginActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
                     public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        Map<String, Object> data = documentSnapshot.getData();
+                        /*Map<String, Object> data = documentSnapshot.getData();
                         if (data != null) {
                             User user = new User((String) data.get("username"),
                                     (String) data.get("eMail"),
                                     (String) data.get("bio"));
                             updateCurrentUser(user);
                             intentToHomeActivity();
-                        }
+                        }*/
+                        User user = documentSnapshot.toObject(User.class);
+                        assert user != null;
+                        CurrentUser currentUser = CurrentUser.getInstance();
+                        currentUser.setUser(user);
+                        Toast.makeText(LoginActivity.this, "Welcome, " + user.getUsername()
+                                , Toast.LENGTH_LONG).show();
+                        intentToHomeActivity();
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -224,28 +227,11 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-    private void updateCurrentUser(User user) {
-        CurrentUser currentUser = CurrentUser.getInstance();
-        currentUser.setUser(user);
-    }
-
     private void intentToHomeActivity() {
         Intent intentToHomeActivity = new Intent(LoginActivity.this, HomeActivity.class);
         intentToHomeActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intentToHomeActivity);
         finish();
-    }
-
-    private boolean checkInternet() {
-        NetworkUtil internet = new NetworkUtil();
-        Thread thread = new Thread(internet);
-        thread.start();
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        return internet.getValue();
     }
 
 }

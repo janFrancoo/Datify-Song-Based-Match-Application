@@ -4,15 +4,28 @@ import androidx.annotation.NonNull;
 
 public class User {
 
-    private String username, eMail, bio;
-
-    //ToDo: Add time value, avatar vs.
+    private String eMail, username, avatarUrl, bio;
 
     public User() { }
-    public User(String username, String eMail, String bio) {
-        this.username = username;
+    public User(String eMail, String username) {
         this.eMail = eMail;
+        this.username = username;
+        this.avatarUrl = "default";
+        this.bio = "";
+    }
+    public User(String eMail, String username, String avatarUrl, String bio) {
+        this.eMail = eMail;
+        this.username = username;
+        this.avatarUrl = avatarUrl;
         this.bio = bio;
+    }
+
+    public String geteMail() {
+        return eMail;
+    }
+
+    public void seteMail(String eMail) {
+        this.eMail = eMail;
     }
 
     public String getUsername() {
@@ -23,12 +36,12 @@ public class User {
         this.username = username;
     }
 
-    public String getMail() {
-        return eMail;
+    public String getAvatarUrl() {
+        return avatarUrl;
     }
 
-    public void setMail(String eMail) {
-        this.eMail = eMail;
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public String getBio() {
@@ -42,6 +55,6 @@ public class User {
     @NonNull
     @Override
     public String toString() {
-        return this.username + ", " + this.eMail + ", " + this.bio;
+        return this.eMail + ", " + this.username + ", " + this.avatarUrl + ", " + this.bio;
     }
 }
