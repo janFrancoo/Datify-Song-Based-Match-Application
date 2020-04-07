@@ -12,7 +12,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
         SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);
         boolean firstTime = sharedPref.getBoolean("firstRun", true);
@@ -20,6 +19,7 @@ public class MainActivity extends AppCompatActivity {
             Intent intentToLoginActivity = new Intent(this, LoginActivity.class);
             intentToLoginActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intentToLoginActivity);
+            this.finish();
         } else {
             SharedPreferences.Editor editor = sharedPref.edit();
             editor.putBoolean("firstRun", false);
@@ -27,6 +27,7 @@ public class MainActivity extends AppCompatActivity {
             Intent intentToSplashActivity = new Intent(this, SplashActivity.class);
             intentToSplashActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intentToSplashActivity);
+            this.finish();
         }
     }
 
