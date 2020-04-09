@@ -4,7 +4,9 @@ import androidx.annotation.NonNull;
 
 public class User {
 
-    private String eMail, username, avatarUrl, bio;
+    private String eMail, username, avatarUrl, bio, gender;
+
+    // ToDo: Add create date!
 
     public User() { }
     public User(String eMail, String username) {
@@ -12,12 +14,7 @@ public class User {
         this.username = username;
         this.avatarUrl = "default";
         this.bio = "";
-    }
-    public User(String eMail, String username, String avatarUrl, String bio) {
-        this.eMail = eMail;
-        this.username = username;
-        this.avatarUrl = avatarUrl;
-        this.bio = bio;
+        this.gender = "";
     }
 
     public String geteMail() {
@@ -52,9 +49,17 @@ public class User {
         this.bio = bio;
     }
 
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
     @NonNull
     @Override
     public String toString() {
-        return this.eMail + ", " + this.username + ", " + this.avatarUrl + ", " + this.bio;
+        return this.eMail + ", " + this.username + ", " + this.avatarUrl + ", " + this.bio + ", " + this.gender;
     }
 }

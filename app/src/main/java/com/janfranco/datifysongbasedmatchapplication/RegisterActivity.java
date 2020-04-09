@@ -120,7 +120,7 @@ public class RegisterActivity extends AppCompatActivity {
                                         currentUser.setUser(user);
                                         Toast.makeText(RegisterActivity.this, "Successfully registered!",
                                                 Toast.LENGTH_LONG).show();
-                                        intentToHome();
+                                        intentToFirstTimeSettings();
                                     } else {
                                         // Remove user
                                         Objects.requireNonNull(mAuth.getCurrentUser()).delete()
@@ -144,10 +144,11 @@ public class RegisterActivity extends AppCompatActivity {
         });
     }
 
-    private void intentToHome() {
-        Intent intentToHome = new Intent(this, HomeActivity.class);
-        intentToHome.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intentToHome);
+    private void intentToFirstTimeSettings() {
+        Intent intentToSettings = new Intent(this, SettingsActivity.class);
+        intentToSettings.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        intentToSettings.putExtra("register", true);
+        startActivity(intentToSettings);
         finish();
     }
 

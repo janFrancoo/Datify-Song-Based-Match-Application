@@ -12,4 +12,6 @@ class Constants {
     static final int FEMALE = 1;
     static final int OTHER = 2;
 
+    // ToDo: Create error messages here, don't use 'ERROR' 'ERROR' every time!
+
 }
