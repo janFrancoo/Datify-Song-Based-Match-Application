@@ -172,10 +172,13 @@ public class LoginActivity extends AppCompatActivity {
             passwordInput.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
-                    if (hasFocus)
+                    if (hasFocus) {
                         passwordInput.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
-                    else
+                        showPasswordBtn.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
+                    } else {
                         passwordInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                        showPasswordBtn.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                    }
                 }
             });
         }

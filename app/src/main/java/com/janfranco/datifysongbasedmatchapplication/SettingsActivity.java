@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.ImageDecoder;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -99,6 +100,23 @@ public class SettingsActivity extends AppCompatActivity {
         genderSpinner = findViewById(R.id.settingsSpinner);
         bio = findViewById(R.id.settingsBio);
 
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        Typeface metropolisExtraLightItalic = Typeface.createFromAsset(getAssets(),
+                "fonts/Metropolis-ExtraLightItalic.otf");
+
+        bio.setTypeface(metropolisExtraLightItalic);
+        bottomLabel.setTypeface(metropolisLight);
+
+        ArrayList<String> genders = new ArrayList<>();
+        genders.add("Select gender");
+        genders.add("Male");
+        genders.add("Female");
+        genders.add("Other");
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this,
+                R.layout.spinner_text, genders);
+        arrayAdapter.setDropDownViewResource(R.layout.spinner_text);
+        genderSpinner.setAdapter(arrayAdapter);
+
         if (fromRegister)
             updateComponentsFirstTime();
         else
@@ -111,15 +129,6 @@ public class SettingsActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         storage = FirebaseStorage.getInstance();
 
-        ArrayList<String> genders = new ArrayList<>();
-        genders.add("Select gender");
-        genders.add("Male");
-        genders.add("Female");
-        genders.add("Other");
-        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, genders);
-        arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        genderSpinner.setAdapter(arrayAdapter);
         genderSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -128,6 +137,16 @@ public class SettingsActivity extends AppCompatActivity {
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) { }
+        });
+
+        bio.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus)
+                    bio.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
+                else
+                    bio.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+            }
         });
 
         super.onStart();
@@ -212,18 +231,19 @@ public class SettingsActivity extends AppCompatActivity {
         bio.setText(user.getBio());
         if (!user.getAvatarUrl().equals("default"))
             Picasso.get().load(user.getAvatarUrl()).into(avatar);
+
         switch (user.getGender()) {
-            case "":
-                genderSpinner.setSelection(0);
+            case "unknown":
+                genderSpinner.setSelection(0, true);
                 break;
             case "Male":
-                genderSpinner.setSelection(1);
+                genderSpinner.setSelection(1, true);
                 break;
             case "Female":
-                genderSpinner.setSelection(2);
+                genderSpinner.setSelection(2, true);
                 break;
             default:
-                genderSpinner.setSelection(3);
+                genderSpinner.setSelection(3, true);
                 break;
         }
     }
@@ -236,10 +256,12 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void update() {
-        // ToDo: Fix update problem => If avatar does not change but bio or gender changes, update does not work!
         final CurrentUser currentUser = CurrentUser.getInstance();
         final User user = currentUser.getUser();
-        user.setGender(selectedGender);
+        if (selectedGender.equals("Select gender"))
+            user.setGender("unknown");
+        else
+            user.setGender(selectedGender);
         user.setBio(bio.getText().toString().trim());
 
         if (imgData != null) {
@@ -255,23 +277,7 @@ public class SettingsActivity extends AppCompatActivity {
                                         public void onSuccess(Uri uri) {
                                             user.setAvatarUrl(uri.toString());
                                             currentUser.setUser(user);
-                                            db.collection("userDetail").document(user.geteMail()).set(user)
-                                                    .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                                        @Override
-                                                        public void onSuccess(Void aVoid) {
-                                                            Toast.makeText(SettingsActivity.this, "Settings are successfully applied!",
-                                                                    Toast.LENGTH_LONG).show();
-                                                            Intent intentToHome = new Intent(SettingsActivity.this, LoginActivity.class);
-                                                            startActivity(intentToHome);
-                                                        }
-                                                    })
-                                                    .addOnFailureListener(new OnFailureListener() {
-                                                        @Override
-                                                        public void onFailure(@NonNull Exception e) {
-                                                            Toast.makeText(SettingsActivity.this, e.getLocalizedMessage(),
-                                                                    Toast.LENGTH_LONG).show();
-                                                        }
-                                                    });
+                                            updateDb(user);
                                         }
                                     })
                                     .addOnFailureListener(new OnFailureListener() {
@@ -292,7 +298,30 @@ public class SettingsActivity extends AppCompatActivity {
                                     Toast.LENGTH_LONG).show();
                         }
                     });
+        } else {
+            currentUser.setUser(user);
+            updateDb(user);
         }
+    }
+
+    private void updateDb(User user) {
+        db.collection("userDetail").document(user.geteMail()).set(user)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Toast.makeText(SettingsActivity.this, "Settings are successfully applied!",
+                                Toast.LENGTH_LONG).show();
+                        Intent intentToHome = new Intent(SettingsActivity.this, LoginActivity.class);
+                        startActivity(intentToHome);
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(SettingsActivity.this, e.getLocalizedMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 
     private void createPopUp() {
