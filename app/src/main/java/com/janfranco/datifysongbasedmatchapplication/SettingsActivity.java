@@ -302,16 +302,6 @@ public class SettingsActivity extends AppCompatActivity {
         @SuppressLint("InflateParams") View popupView = inflater.inflate(R.layout.popup_contact,
                 null);
 
-        Button sendIssue = popupView.findViewById(R.id.popUpSendIssue);
-        final EditText issue = popupView.findViewById(R.id.popUpIssueInput);
-        sendIssue.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (issue.getText().toString().trim().length() > 5)
-                    saveIssue(issue.getText().toString());
-            }
-        });
-
         int width = LinearLayout.LayoutParams.WRAP_CONTENT;
         int height = LinearLayout.LayoutParams.WRAP_CONTENT;
         final PopupWindow popupWindow = new PopupWindow(popupView, width, height, true);
@@ -319,6 +309,18 @@ public class SettingsActivity extends AppCompatActivity {
         popupWindow.setElevation(50);
         popupWindow.showAtLocation(getWindow().getDecorView().findViewById(android.R.id.content),
                 Gravity.CENTER, 0, 0);
+
+        Button sendIssue = popupView.findViewById(R.id.popUpSendIssue);
+        final EditText issue = popupView.findViewById(R.id.popUpIssueInput);
+        sendIssue.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (issue.getText().toString().trim().length() > 5) {
+                    saveIssue(issue.getText().toString());
+                    popupWindow.dismiss();
+                }
+            }
+        });
 
         popupView.setOnTouchListener(new View.OnTouchListener() {
             @SuppressLint("ClickableViewAccessibility")

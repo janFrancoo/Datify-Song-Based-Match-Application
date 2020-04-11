@@ -4,12 +4,15 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -28,6 +31,8 @@ public class RegisterActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
     private EditText eMailInput, usernameInput, passwordInput;
+    private TextView joinUsLabel;
+    private ImageView bgTop, bgLeft, bgRight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +42,7 @@ public class RegisterActivity extends AppCompatActivity {
         eMailInput = findViewById(R.id.registerEMailInput);
         usernameInput = findViewById(R.id.registerUsernameInput);
         passwordInput = findViewById(R.id.registerPasswordInput);
+        joinUsLabel = findViewById(R.id.regJoinUsLabel);
         final Button registerBtn = findViewById(R.id.registerBtn);
         registerBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -45,6 +51,10 @@ public class RegisterActivity extends AppCompatActivity {
                     checkUsername();
             }
         });
+
+        bgTop = findViewById(R.id.regBgTop);
+        bgLeft = findViewById(R.id.regBgLeft);
+        bgRight = findViewById(R.id.regBgRight);
 
         TextWatcher textWatcher = new TextWatcher() {
             @Override
@@ -74,8 +84,67 @@ public class RegisterActivity extends AppCompatActivity {
         usernameInput.addTextChangedListener(textWatcher);
         passwordInput.addTextChangedListener(textWatcher);
 
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        Typeface metropolisExtraLightItalic = Typeface.createFromAsset(getAssets(),
+                "fonts/Metropolis-ExtraLightItalic.otf");
+        Typeface metropolisExtraBold = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-ExtraBold.otf");
+
+        registerBtn.bringToFront();
+        registerBtn.setTypeface(metropolisLight);
+        joinUsLabel.setTypeface(metropolisExtraBold);
+
+        eMailInput.setTypeface(metropolisExtraLightItalic);
+        eMailInput.setTextColor(Constants.WHITE);
+        usernameInput.setTypeface(metropolisExtraLightItalic);
+        usernameInput.setTextColor(Constants.WHITE);
+        passwordInput.setTypeface(metropolisExtraLightItalic);
+        passwordInput.setTextColor(Constants.WHITE);
+
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        eMailInput.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus)
+                    eMailInput.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
+                else
+                    eMailInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+            }
+        });
+
+        usernameInput.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus)
+                    usernameInput.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
+                else
+                    usernameInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+            }
+        });
+
+        passwordInput.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus)
+                    passwordInput.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
+                else
+                    passwordInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+            }
+        });
+
+        bgTop.animate().scaleX(1.5f).scaleY(1.5f).setDuration(1000).start();
+        bgLeft.animate().scaleX(0.9f).scaleY(0.9f).setDuration(1000).start();
+        bgLeft.animate().translationX(-100).setDuration(1000).start();
+        bgRight.animate().scaleX(1.5f).scaleY(1.5f).setDuration(1000).start();
+
+        joinUsLabel.animate().alpha(.5f).setDuration(1500).start();
+        joinUsLabel.animate().translationY(50).setDuration(1600).start();
     }
 
     private void checkUsername() {

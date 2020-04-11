@@ -3,34 +3,44 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="#eeeeee">
+    android:background="#ffffff">
+
+    <TextView
+        android:id="@+id/popUpInfoMailLabel"
+        android:layout_width="wrap_content"
+        android:layout_margin="20dp"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:text="Please, enter your e-mail address for receiving a password reset mail." />
 
     <EditText
         android:id="@+id/popUpEmailInput"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_centerVertical="true"
-        android:layout_marginStart="50dp"
-        android:layout_marginLeft="80dp"
-        android:layout_marginTop="50dp"
-        android:layout_marginEnd="28dp"
-        android:layout_marginRight="60dp"
+        android:layout_width="150dp"
+        android:layout_height="40dp"
+        android:layout_below="@+id/popUpInfoMailLabel"
+        android:layout_alignStart="@+id/popUpInfoMailLabel"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="10dp"
         android:layout_marginBottom="50dp"
         android:layout_toStartOf="@+id/popUpSendMail"
+        android:background="@drawable/input"
         android:ems="10"
-        android:inputType="textEmailAddress" />
+        android:inputType="textEmailAddress"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:textColor="@android:color/white" />
 
     <Button
-        android:id="@+id/popUpSendIssue"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginTop="50dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginBottom="50dp"
-        android:text="Send E-Mail" />
+        android:id="@+id/popUpSendMail"
+        android:layout_width="100dp"
+        android:layout_height="40dp"
+        android:layout_below="@+id/popUpInfoMailLabel"
+        android:layout_alignEnd="@+id/popUpInfoMailLabel"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/login"
+        android:text="Send"
+        android:textColor="@android:color/white"
+        android:textSize="18sp" />
 
 
 </RelativeLayout>

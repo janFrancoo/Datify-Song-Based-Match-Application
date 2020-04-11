@@ -6,6 +6,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -14,6 +15,8 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -35,9 +38,10 @@ import java.util.regex.Pattern;
 public class LoginActivity extends AppCompatActivity {
 
     private FirebaseAuth mAuth;
-    private Button loginBtn;
+    private Button loginBtn, showPasswordBtn;
     private EditText eMailInput, passwordInput;
     private ConstraintLayout layout;
+    private TextView welcomeLabel, secondLabel, forgotPasswordText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,18 +54,43 @@ public class LoginActivity extends AppCompatActivity {
         loginBtn = findViewById(R.id.loginLoginBtn);
         eMailInput = findViewById(R.id.loginEmailInput);
         passwordInput = findViewById(R.id.loginPasswordInput);
-        Button showPasswordBtn = findViewById(R.id.loginShowPasswordBtn);
-        TextView forgotPasswordText = findViewById(R.id.loginForgotPasswordText);
+        showPasswordBtn = findViewById(R.id.loginShowPasswordBtn);
+        forgotPasswordText = findViewById(R.id.loginForgotPasswordText);
         TextView registerText = findViewById(R.id.loginRegisterText);
         mAuth = FirebaseAuth.getInstance();
+
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        Typeface metropolisExtraLightItalic = Typeface.createFromAsset(getAssets(),
+                "fonts/Metropolis-ExtraLightItalic.otf");
+        Typeface metropolisExtraBold = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-ExtraBold.otf");
+
+        welcomeLabel = findViewById(R.id.welcomeLabel);
+        welcomeLabel.setTypeface(metropolisExtraBold);
+        welcomeLabel.setTextColor(Constants.DARK_PURPLE);
+        welcomeLabel.setTypeface(welcomeLabel.getTypeface(), Typeface.BOLD_ITALIC);
+        secondLabel = findViewById(R.id.secondWelcomeLabel);
+        secondLabel.setTypeface(metropolisExtraLightItalic);
+        secondLabel.setTextColor(Constants.BLACK);
+        forgotPasswordText.setTypeface(metropolisLight);
+        forgotPasswordText.setTextColor(Constants.BLACK);
+        registerText.setTypeface(metropolisLight);
+        registerText.setTextColor(Constants.BLACK);
+        passwordInput.setTypeface(metropolisLight);
+        passwordInput.setTextColor(Constants.WHITE);
+        eMailInput.setTypeface(metropolisLight);
 
         loginBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (loginBtn.isEnabled())
                     login();
+                else
+                    Toast.makeText(LoginActivity.this,
+                            "The length of your password must be between 5 and 20. " +
+                                    "Also, check your e-mail address.", Toast.LENGTH_LONG).show();
             }
         });
+        loginBtn.setTypeface(metropolisLight);
 
         showPasswordBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -119,8 +148,37 @@ public class LoginActivity extends AppCompatActivity {
 
         if (mAuth.getCurrentUser() != null)
             updateCurrentUserSingleton(mAuth.getCurrentUser().getEmail());
-        else
+        else {
             layout.setVisibility(View.VISIBLE);
+            layout.startAnimation(headerAlpha());
+            Constants.translation(welcomeLabel, Constants.DIR_X, -100);
+            Constants.translation(secondLabel, Constants.DIR_X, -80);
+            Constants.translation(loginBtn, Constants.DIR_Y, -75);
+            Constants.translation(eMailInput, Constants.DIR_Y, -75);
+            Constants.translation(passwordInput, Constants.DIR_Y, -75);
+            Constants.translation(forgotPasswordText, Constants.DIR_Y, -75);
+            Constants.translation(showPasswordBtn, Constants.DIR_Y, -75);
+
+            eMailInput.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus)
+                        eMailInput.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
+                    else
+                        eMailInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                }
+            });
+
+            passwordInput.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus)
+                        passwordInput.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).start();
+                    else
+                        passwordInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                }
+            });
+        }
     }
 
     private void login() {
@@ -148,8 +206,14 @@ public class LoginActivity extends AppCompatActivity {
         @SuppressLint("InflateParams") View popupView = inflater.inflate(R.layout.popup_window,
                 null);
 
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        TextView popUpInfoMailLabel = popupView.findViewById(R.id.popUpInfoMailLabel);
+        popUpInfoMailLabel.setTypeface(metropolisLight);
+        popUpInfoMailLabel.setTextColor(Constants.DARK_PURPLE);
+
         Button sendMail = popupView.findViewById(R.id.popUpSendMail);
         final EditText email = popupView.findViewById(R.id.popUpEmailInput);
+        email.setTypeface(metropolisLight);
         sendMail.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -232,6 +296,13 @@ public class LoginActivity extends AppCompatActivity {
         intentToHomeActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intentToHomeActivity);
         finish();
+    }
+
+    private Animation headerAlpha() {
+        AlphaAnimation animation = new AlphaAnimation(0.2f, Constants.ANIM_ALPHA_TO);
+        animation.setDuration(1000);
+        animation.setFillAfter(true);
+        return animation;
     }
 
 }
