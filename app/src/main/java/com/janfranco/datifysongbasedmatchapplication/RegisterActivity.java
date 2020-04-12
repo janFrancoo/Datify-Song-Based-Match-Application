@@ -2,16 +2,23 @@ package com.janfranco.datifysongbasedmatchapplication;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,12 +40,15 @@ public class RegisterActivity extends AppCompatActivity {
     private EditText eMailInput, usernameInput, passwordInput;
     private TextView joinUsLabel;
     private ImageView bgTop, bgLeft, bgRight;
+    private ConstraintLayout layout;
+    private PopupWindow loadPopUp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
+        layout = findViewById(R.id.registerLayout);
         eMailInput = findViewById(R.id.registerEMailInput);
         usernameInput = findViewById(R.id.registerUsernameInput);
         passwordInput = findViewById(R.id.registerPasswordInput);
@@ -138,13 +148,24 @@ public class RegisterActivity extends AppCompatActivity {
             }
         });
 
-        bgTop.animate().scaleX(1.5f).scaleY(1.5f).setDuration(1000).start();
-        bgLeft.animate().scaleX(0.9f).scaleY(0.9f).setDuration(1000).start();
-        bgLeft.animate().translationX(-100).setDuration(1000).start();
-        bgRight.animate().scaleX(1.5f).scaleY(1.5f).setDuration(1000).start();
+        layout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (v.hasFocus()) {
+                    eMailInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                    usernameInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                    passwordInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                }
+            }
+        });
 
-        joinUsLabel.animate().alpha(.5f).setDuration(1500).start();
-        joinUsLabel.animate().translationY(50).setDuration(1600).start();
+        bgTop.animate().scaleX(1.5f).scaleY(1.5f).setDuration(Constants.ANIM_DUR).start();
+        bgLeft.animate().scaleX(0.9f).scaleY(0.9f).setDuration(Constants.ANIM_DUR).start();
+        bgLeft.animate().translationX(-100).setDuration(Constants.ANIM_DUR).start();
+        bgRight.animate().scaleX(1.5f).scaleY(1.5f).setDuration(Constants.ANIM_DUR).start();
+
+        joinUsLabel.animate().alpha(.5f).setDuration(Constants.ANIM_DUR).start();
+        joinUsLabel.animate().translationY(50).setDuration(Constants.ANIM_DUR).start();
     }
 
     private void checkUsername() {
@@ -171,6 +192,7 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void register(final String username) {
+        loadPopUp();
         final String eMail = eMailInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
 
@@ -192,6 +214,7 @@ public class RegisterActivity extends AppCompatActivity {
                                         intentToFirstTimeSettings();
                                     } else {
                                         // Remove user
+                                        loadPopUp.dismiss();
                                         Objects.requireNonNull(mAuth.getCurrentUser()).delete()
                                                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                                             @Override
@@ -208,17 +231,47 @@ public class RegisterActivity extends AppCompatActivity {
                     Toast.makeText(RegisterActivity.this,
                             "Error while registering: This e-mail address is used or another unknown error.",
                             Toast.LENGTH_LONG).show();
+                    loadPopUp.dismiss();
                 }
             }
         });
     }
 
     private void intentToFirstTimeSettings() {
+        loadPopUp.dismiss();
         Intent intentToSettings = new Intent(this, SettingsActivity.class);
         intentToSettings.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         intentToSettings.putExtra("register", true);
         startActivity(intentToSettings);
         finish();
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void loadPopUp() {
+        LayoutInflater inflater = (LayoutInflater)
+                getSystemService(LAYOUT_INFLATER_SERVICE);
+        assert inflater != null;
+        @SuppressLint("InflateParams") View popupView = inflater.inflate(R.layout.popup_load,
+                null);
+
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        TextView popUpLoadLabel = popupView.findViewById(R.id.popUpLoadLabel);
+        popUpLoadLabel.setTypeface(metropolisLight);
+        popUpLoadLabel.setText("Authentication...");
+        ImageView spinner = popupView.findViewById(R.id.popUpLoadSpinner);
+        spinner.setBackgroundResource(R.drawable.load_animation);
+        AnimationDrawable spinnerAnim = (AnimationDrawable) spinner.getBackground();
+        spinnerAnim.start();
+
+        int width = LinearLayout.LayoutParams.WRAP_CONTENT;
+        int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+        loadPopUp = new PopupWindow(popupView, width, height, true);
+
+        loadPopUp.setOutsideTouchable(false);
+        loadPopUp.setFocusable(false);
+        loadPopUp.setElevation(50);
+        loadPopUp.showAtLocation(getWindow().getDecorView().findViewById(android.R.id.content),
+                Gravity.CENTER, 0, 0);
     }
 
 }

@@ -7,6 +7,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -19,6 +20,7 @@ import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
@@ -42,6 +44,7 @@ public class LoginActivity extends AppCompatActivity {
     private EditText eMailInput, passwordInput;
     private ConstraintLayout layout;
     private TextView welcomeLabel, secondLabel, forgotPasswordText;
+    private PopupWindow loadPopUp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -149,6 +152,7 @@ public class LoginActivity extends AppCompatActivity {
         if (mAuth.getCurrentUser() != null)
             updateCurrentUserSingleton(mAuth.getCurrentUser().getEmail());
         else {
+            // Discovered the short way too late =)
             layout.setVisibility(View.VISIBLE);
             layout.startAnimation(headerAlpha());
             Constants.translation(welcomeLabel, Constants.DIR_X, -100);
@@ -158,6 +162,8 @@ public class LoginActivity extends AppCompatActivity {
             Constants.translation(passwordInput, Constants.DIR_Y, -75);
             Constants.translation(forgotPasswordText, Constants.DIR_Y, -75);
             Constants.translation(showPasswordBtn, Constants.DIR_Y, -75);
+            ImageView headerTop = findViewById(R.id.backgroundTop);
+            Constants.translation(headerTop, Constants.DIR_X, -30);
 
             eMailInput.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
@@ -181,10 +187,23 @@ public class LoginActivity extends AppCompatActivity {
                     }
                 }
             });
+
+            layout.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (v.hasFocus()) {
+                        eMailInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                        eMailInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                        passwordInput.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                        showPasswordBtn.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
+                    }
+                }
+            });
         }
     }
 
     private void login() {
+        loadPopUp();
         final String eMail = eMailInput.getText().toString().trim();
         mAuth.signInWithEmailAndPassword(
                 eMail,
@@ -197,6 +216,8 @@ public class LoginActivity extends AppCompatActivity {
                 } else {
                     Toast.makeText(LoginActivity.this, "Check your e-mail or password!",
                             Toast.LENGTH_LONG).show();
+                    if (loadPopUp != null)
+                        loadPopUp.dismiss();
                 }
             }
         });
@@ -295,6 +316,8 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void intentToHomeActivity() {
+        if (loadPopUp != null)
+            loadPopUp.dismiss();
         Intent intentToHomeActivity = new Intent(LoginActivity.this, HomeActivity.class);
         intentToHomeActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intentToHomeActivity);
@@ -306,6 +329,34 @@ public class LoginActivity extends AppCompatActivity {
         animation.setDuration(1000);
         animation.setFillAfter(true);
         return animation;
+    }
+
+    @SuppressLint({"SetTextI18n", "ResourceAsColor"})
+    private void loadPopUp() {
+        LayoutInflater inflater = (LayoutInflater)
+                getSystemService(LAYOUT_INFLATER_SERVICE);
+        assert inflater != null;
+        @SuppressLint("InflateParams") View popupView = inflater.inflate(R.layout.popup_load,
+                null);
+
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        TextView popUpLoadLabel = popupView.findViewById(R.id.popUpLoadLabel);
+        popUpLoadLabel.setTypeface(metropolisLight);
+        popUpLoadLabel.setText("Authentication...");
+        ImageView spinner = popupView.findViewById(R.id.popUpLoadSpinner);
+        spinner.setBackgroundResource(R.drawable.load_animation);
+        AnimationDrawable spinnerAnim = (AnimationDrawable) spinner.getBackground();
+        spinnerAnim.start();
+
+        int width = LinearLayout.LayoutParams.WRAP_CONTENT;
+        int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+        loadPopUp = new PopupWindow(popupView, width, height, true);
+
+        loadPopUp.setOutsideTouchable(false);
+        loadPopUp.setFocusable(false);
+        loadPopUp.setElevation(50);
+        loadPopUp.showAtLocation(getWindow().getDecorView().findViewById(android.R.id.content),
+                Gravity.CENTER, 0, 0);
     }
 
 }

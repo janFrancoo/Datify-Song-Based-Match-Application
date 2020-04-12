@@ -4,12 +4,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".RegisterActivity">
+    tools:context=".RegisterActivity"
+    android:id="@+id/registerLayout">
 
     <Button
         android:id="@+id/registerBtn"
         android:layout_width="290dp"
-        android:layout_height="55dp"
+        android:layout_height="42dp"
         android:layout_marginTop="32dp"
         android:background="@drawable/regbtn"
         android:enabled="false"

@@ -6,7 +6,7 @@ public class Issue {
 
     // ToDo: Add create time
 
-    public Issue(String eMail, String issue) {
+    Issue(String eMail, String issue) {
         this.eMail = eMail;
         this.issue = issue;
     }

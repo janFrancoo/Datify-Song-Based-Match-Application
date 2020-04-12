@@ -41,6 +41,7 @@ class Constants {
     static float ANIM_ALPHA_TO = 1.0f;
     static boolean DIR_X = true;
     static boolean DIR_Y = false;
+    static int ANIM_DUR = 1200;
 
     /*
     // Fonts

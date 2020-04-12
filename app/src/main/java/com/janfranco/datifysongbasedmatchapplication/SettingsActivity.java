@@ -13,6 +13,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.ImageDecoder;
 import android.graphics.Typeface;
+import android.graphics.drawable.AnimationDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -62,6 +63,7 @@ public class SettingsActivity extends AppCompatActivity {
     private String selectedGender = "";
     private EditText bio;
     private Uri imgData;
+    private PopupWindow loadPopUp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -256,6 +258,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void update() {
+        loadPopUp();
         final CurrentUser currentUser = CurrentUser.getInstance();
         final User user = currentUser.getUser();
         if (selectedGender.equals("Select gender"))
@@ -296,6 +299,8 @@ public class SettingsActivity extends AppCompatActivity {
                             // Image could not get uploaded
                             Toast.makeText(SettingsActivity.this, e.getLocalizedMessage(),
                                     Toast.LENGTH_LONG).show();
+                            if (loadPopUp != null)
+                                loadPopUp.dismiss();
                         }
                     });
         } else {
@@ -311,6 +316,8 @@ public class SettingsActivity extends AppCompatActivity {
                     public void onSuccess(Void aVoid) {
                         Toast.makeText(SettingsActivity.this, "Settings are successfully applied!",
                                 Toast.LENGTH_LONG).show();
+                        if (loadPopUp != null)
+                            loadPopUp.dismiss();
                         Intent intentToHome = new Intent(SettingsActivity.this, LoginActivity.class);
                         startActivity(intentToHome);
                     }
@@ -320,6 +327,8 @@ public class SettingsActivity extends AppCompatActivity {
                     public void onFailure(@NonNull Exception e) {
                         Toast.makeText(SettingsActivity.this, e.getLocalizedMessage(),
                                 Toast.LENGTH_LONG).show();
+                        if (loadPopUp != null)
+                            loadPopUp.dismiss();
                     }
                 });
     }
@@ -378,6 +387,34 @@ public class SettingsActivity extends AppCompatActivity {
                         Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void loadPopUp() {
+        LayoutInflater inflater = (LayoutInflater)
+                getSystemService(LAYOUT_INFLATER_SERVICE);
+        assert inflater != null;
+        @SuppressLint("InflateParams") View popupView = inflater.inflate(R.layout.popup_load,
+                null);
+
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        TextView popUpLoadLabel = popupView.findViewById(R.id.popUpLoadLabel);
+        popUpLoadLabel.setTypeface(metropolisLight);
+        popUpLoadLabel.setText("Updating...");
+        ImageView spinner = popupView.findViewById(R.id.popUpLoadSpinner);
+        spinner.setBackgroundResource(R.drawable.load_animation);
+        AnimationDrawable spinnerAnim = (AnimationDrawable) spinner.getBackground();
+        spinnerAnim.start();
+
+        int width = LinearLayout.LayoutParams.WRAP_CONTENT;
+        int height = LinearLayout.LayoutParams.WRAP_CONTENT;
+        loadPopUp = new PopupWindow(popupView, width, height, true);
+
+        loadPopUp.setOutsideTouchable(false);
+        loadPopUp.setFocusable(false);
+        loadPopUp.setElevation(50);
+        loadPopUp.showAtLocation(getWindow().getDecorView().findViewById(android.R.id.content),
+                Gravity.CENTER, 0, 0);
     }
 
 }
