@@ -113,7 +113,7 @@ public class SettingsActivity extends AppCompatActivity {
         genders.add("Select gender");
         genders.add("Male");
         genders.add("Female");
-        genders.add("Other");
+        genders.add("Neutral");
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this,
                 R.layout.spinner_text, genders);
         arrayAdapter.setDropDownViewResource(R.layout.spinner_text);

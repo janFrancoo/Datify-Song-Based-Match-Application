@@ -65,4 +65,16 @@ class Constants {
     }
     */
 
+    // Chat
+    // Status
+    static int STATUS_NEW = 0;
+    static int STATUS_CLOSED = 1; // (archived)
+    // Based on
+    static int BASED_RANDOM = 0;
+    static int BASED_SONG = 1;
+    static int BASED_PROFILE = 2;
+    // ToDo: Consider a new based => premium membership randomize
+    // Random
+    static int RAND_LIM = 10000;
+
 }

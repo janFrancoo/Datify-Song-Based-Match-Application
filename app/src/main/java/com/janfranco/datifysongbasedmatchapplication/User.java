@@ -2,19 +2,25 @@ package com.janfranco.datifysongbasedmatchapplication;
 
 import androidx.annotation.NonNull;
 
+import java.util.ArrayList;
+
 public class User {
 
     private String eMail, username, avatarUrl, bio, gender;
+    private ArrayList<String> matches;
+    private int random;
 
     // ToDo: Add create date!
 
     public User() { }
-    public User(String eMail, String username) {
+    public User(String eMail, String username, int random) {
         this.eMail = eMail;
         this.username = username;
         this.avatarUrl = "default";
         this.bio = "";
         this.gender = "";
+        this.matches = new ArrayList<>();
+        this.random = random;
     }
 
     public String geteMail() {
@@ -57,9 +63,20 @@ public class User {
         this.gender = gender;
     }
 
-    @NonNull
-    @Override
-    public String toString() {
-        return this.eMail + ", " + this.username + ", " + this.avatarUrl + ", " + this.bio + ", " + this.gender;
+    public ArrayList<String> getMatches() {
+        return matches;
     }
+
+    public void setMatches(ArrayList<String> matches) {
+        this.matches = matches;
+    }
+
+    public int getRandom() {
+        return random;
+    }
+
+    public void setRandom(int random) {
+        this.random = random;
+    }
+
 }

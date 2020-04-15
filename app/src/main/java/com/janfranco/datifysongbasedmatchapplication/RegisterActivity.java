@@ -27,10 +27,12 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Objects;
+import java.util.Random;
 import java.util.regex.Pattern;
 
 public class RegisterActivity extends AppCompatActivity {
@@ -195,13 +197,15 @@ public class RegisterActivity extends AppCompatActivity {
         loadPopUp();
         final String eMail = eMailInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
+        Random random = new Random();
+        final int randomVal = random.nextInt(Constants.RAND_LIM);
 
         mAuth.createUserWithEmailAndPassword(eMail, password)
                 .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {
                 if (task.isSuccessful()) {
-                    final User user = new User(eMail, username);
+                    final User user = new User(eMail, username, randomVal);
                     db.collection("userDetail").document(eMail).set(user)
                             .addOnCompleteListener(new OnCompleteListener<Void>() {
                                 @Override
