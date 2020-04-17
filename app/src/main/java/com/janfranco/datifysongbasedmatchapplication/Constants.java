@@ -76,5 +76,7 @@ class Constants {
     // ToDo: Consider a new based => premium membership randomize
     // Random
     static int RAND_LIM = 10000;
+    // Other
+    static String SENDER_BROADCAST = "broadcast";
 
 }

@@ -1,9 +1,12 @@
 package com.janfranco.datifysongbasedmatchapplication;
 
+import java.util.ArrayList;
+
 public class Chat {
 
     private int basedOn, status;
-    private String chatName, username1, username2, avatar1, avatar2, lastMessage;
+    private String chatName, username1, username2, avatar1, avatar2;
+    private ArrayList<ChatMessage> messages;
 
     // ToDo: Add date!!!
 
@@ -19,8 +22,13 @@ public class Chat {
         this.username2 = username2;
         this.avatar1 = avatar1;
         this.avatar2 = avatar2;
-        this.lastMessage = lastMessage;
 
+        this.messages = new ArrayList<>();
+        this.messages.add(new ChatMessage(Constants.SENDER_BROADCAST, lastMessage));
+    }
+
+    public String getLastMessage() {
+        return this.messages.get(this.messages.size() - 1).getMessage();
     }
 
     public String getChatName() {
@@ -45,14 +53,6 @@ public class Chat {
 
     public void setStatus(int status) {
         this.status = status;
-    }
-
-    public String getLastMessage() {
-        return lastMessage;
-    }
-
-    public void setLastMessage(String lastMessage) {
-        this.lastMessage = lastMessage;
     }
 
     public String getUsername1() {
@@ -85,6 +85,14 @@ public class Chat {
 
     public void setAvatar2(String avatar2) {
         this.avatar2 = avatar2;
+    }
+
+    public ArrayList<ChatMessage> getMessages() {
+        return messages;
+    }
+
+    public void setMessages(ArrayList<ChatMessage> messages) {
+        this.messages = messages;
     }
 
 }

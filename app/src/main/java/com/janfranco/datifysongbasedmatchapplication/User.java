@@ -9,7 +9,6 @@ public class User {
     private String eMail, username, avatarUrl, bio, gender;
     private ArrayList<String> matches;
     private int random;
-
     // ToDo: Add create date!
 
     public User() { }
@@ -78,5 +77,5 @@ public class User {
     public void setRandom(int random) {
         this.random = random;
     }
-
+    
 }

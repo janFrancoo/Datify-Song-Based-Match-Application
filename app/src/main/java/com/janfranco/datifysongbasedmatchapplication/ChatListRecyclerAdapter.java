@@ -47,8 +47,6 @@ public class ChatListRecyclerAdapter extends RecyclerView.Adapter<ChatListRecycl
         // ToDo: Add date!
     }
 
-    
-
     @Override
     public int getItemCount() {
         return chats.size();

@@ -6,13 +6,29 @@
     android:layout_height="match_parent"
     tools:context=".ChatActivity">
 
-    <TextView
-        android:id="@+id/tempChatName"
+    <EditText
+        android:id="@+id/messageInput"
+        android:layout_width="323dp"
+        android:layout_height="45dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/sendMessageBtn"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="29dp"
-        android:layout_marginTop="96dp"
-        android:text="TextView"
+        android:layout_height="45dp"
+        android:text="Button"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/messageList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="#C82525"
+        app:layout_constraintBottom_toTopOf="@+id/messageInput"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>
