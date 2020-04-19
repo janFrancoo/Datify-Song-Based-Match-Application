@@ -50,6 +50,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
 
+// ToDo: Update all chats when update avatar
+
 public class SettingsActivity extends AppCompatActivity {
 
     private FirebaseAuth mAuth;

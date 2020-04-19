@@ -12,15 +12,6 @@ class Constants {
     static final String USERNAME_REGEX = "^[a-zA-Z\\d]{5,15}$";
     static final String EMAIL_REGEX = "^(.+)@([a-zA-Z\\d-]+)\\.([a-zA-Z]+)(\\.[a-zA-Z]+)?$";
 
-    // User Detail
-    enum GENDER {
-        MALE,
-        FEMALE,
-        OTHER
-    }
-
-    // ToDo: Create error messages here, don't use 'ERROR' 'ERROR' every time!
-
     // Colors
     static int BLACK = Color.parseColor("#000000");
     static int WHITE = Color.parseColor("#FFFFFF");
@@ -76,8 +67,6 @@ class Constants {
     // ToDo: Consider a new based => premium membership randomize
     // Random
     static int RAND_LIM = 10000;
-    // Other
-    static String SENDER_BROADCAST = "broadcast";
 
     // Date
     static String DATE_MESSAGE = "HH:mm"; // Hours and minutes for chat messages
@@ -85,5 +74,6 @@ class Constants {
     // Local Database
     static String DB_NAME = "Chat";
     static String TABLE_CHAT = "chats";
+    static String TABLE_MESSAGES = "messages";
 
 }

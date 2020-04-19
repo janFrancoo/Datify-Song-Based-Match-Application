@@ -8,6 +8,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteStatement;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -37,23 +40,26 @@ import com.google.firebase.firestore.ListenerRegistration;
 import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class ChatActivity extends AppCompatActivity {
 
-    private String chatName;
+    private String chatName, avatarUrl, chatUsername;
     private FirebaseFirestore db;
     private ListenerRegistration registration;
     private Button sendMessageBtn;
     private EditText messageInput;
-    private User user;
+    private CurrentUser currentUser;
     private ArrayList<ChatMessage> messages;
     private MessageListRecyclerAdapter messageListAdapter;
     private RecyclerView messageList;
     private TextView headerUsername;
     private ImageView headerAvatar;
-    private String avatarUrl;
+    private SQLiteDatabase localDb;
 
     // ToDo: Add long click listener, if long clicked -> copy contents to input
+
+    // ToDo: Add viewed or transmitted into messages using transmitted field!
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +70,9 @@ public class ChatActivity extends AppCompatActivity {
         messageInput = findViewById(R.id.messageInput);
         sendMessageBtn = findViewById(R.id.sendMessageBtn);
         sendMessageBtn.setEnabled(false);
+
+        avatarUrl = getIntent().getStringExtra("chatAvatar");
+        chatUsername = getIntent().getStringExtra("chatUsername");
 
         TextWatcher textWatcher = new TextWatcher() {
             @Override
@@ -104,22 +113,21 @@ public class ChatActivity extends AppCompatActivity {
                 createPopUp();
             }
         });
-    }
+        updateHeader();
 
-    @Override
-    protected void onStart() {
-        super.onStart();
+        localDb = openOrCreateDatabase(Constants.DB_NAME, Context.MODE_PRIVATE, null);
+        localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
+                Constants.TABLE_MESSAGES +
+                "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, PRIMARY KEY (message, sendDate))");
 
         messages = new ArrayList<>();
         db = FirebaseFirestore.getInstance();
+        currentUser = CurrentUser.getInstance();
 
-        CurrentUser currentUser = CurrentUser.getInstance();
-        user = currentUser.getUser();
-
-        getMessages();
-        messageListAdapter = new MessageListRecyclerAdapter(user.getUsername(), messages);
+        messageListAdapter = new MessageListRecyclerAdapter(currentUser.getUser().getUsername(), messages);
         messageList.setAdapter(messageListAdapter);
-
+        getMessagesFromLocal();
+        getMessages();
         listen();
 
         sendMessageBtn.setOnClickListener(new View.OnClickListener() {
@@ -141,6 +149,40 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+
+        messageListAdapter.notifyDataSetChanged();
+    }
+
+    private void getMessagesFromLocal() {
+        messages.clear();
+
+        String sql = "SELECT * FROM " + Constants.TABLE_MESSAGES;
+        Cursor cursor = localDb.rawQuery(sql, null);
+
+        int cName = cursor.getColumnIndex("chatName");
+        int sender = cursor.getColumnIndex("sender");
+        int message = cursor.getColumnIndex("message");
+        int sendDate = cursor.getColumnIndex("sendDate");
+
+        while (cursor.moveToNext()) {
+            if (chatName.equals(cursor.getString(cName))) {
+                ChatMessage cm = new ChatMessage(
+                        cursor.getString(sender),
+                        cursor.getString(message),
+                        cursor.getLong(sendDate)
+                );
+                cm.setTransmitted(true);
+                messages.add(cm);
+            }
+        }
+
+        messageListAdapter.notifyDataSetChanged();
+        cursor.close();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
 
@@ -151,6 +193,8 @@ public class ChatActivity extends AppCompatActivity {
     private void listen() {
         if (chatName == null)
             return;
+
+        final String currentUsername = currentUser.getUser().getUsername();
 
         final DocumentReference ref = db.collection("chat").document(chatName);
         registration = ref.addSnapshotListener(new EventListener<DocumentSnapshot>() {
@@ -166,9 +210,23 @@ public class ChatActivity extends AppCompatActivity {
                     Chat updatedChat = snapshot.toObject(Chat.class);
                     if (updatedChat != null) {
                         ArrayList<ChatMessage> fromDb = updatedChat.getMessages();
-                        messages.clear();
-                        messages.addAll(fromDb);
+                        fromDb.removeAll(messages);
+                        for (int i=0; i<fromDb.size(); i++) {
+                            if (!fromDb.get(i).getSender().equals(currentUsername)) {
+                                messages.add(fromDb.get(i));
+                                writeToLocal(fromDb.get(i));
+                                fromDb.get(i).setTransmitted(true);
+                            }
+                        }
                         messageListAdapter.notifyDataSetChanged();
+
+                        for (Iterator<ChatMessage> iterator = fromDb.iterator(); iterator.hasNext(); ) {
+                            ChatMessage cm = iterator.next();
+                            if (cm.isTransmitted()) {
+                                iterator.remove();
+                            }
+                        }
+                        db.collection("chat").document(chatName).update("messages", fromDb);
                     }
                     else
                         Toast.makeText(ChatActivity.this, "lastMessage null error!",
@@ -180,7 +238,7 @@ public class ChatActivity extends AppCompatActivity {
 
     private void sendMessage(final String message) {
         long createDate = Timestamp.now().getSeconds();
-        final ChatMessage chatMessage = new ChatMessage(user.getUsername(), message, createDate);
+        final ChatMessage chatMessage = new ChatMessage(currentUser.getUser().getUsername(), message, createDate);
         db.collection("chat").document(chatName).update(
                 "messages",
                 FieldValue.arrayUnion(chatMessage),
@@ -196,6 +254,9 @@ public class ChatActivity extends AppCompatActivity {
                                Toast.LENGTH_LONG).show();
                     }
                 });
+        messages.add(chatMessage);
+        messageListAdapter.notifyDataSetChanged();
+        writeToLocal(chatMessage);
     }
 
     private void getMessages() {
@@ -205,12 +266,8 @@ public class ChatActivity extends AppCompatActivity {
                     public void onSuccess(DocumentSnapshot snapshot) {
                         Chat chat = snapshot.toObject(Chat.class);
                         if (chat != null) {
-                            updateHeader(chat);
-                            messages.clear();
-                            ArrayList<ChatMessage> fromDb = chat.getMessages();
-                            messages.addAll(fromDb);
-                            messageListAdapter.notifyDataSetChanged();
-                            messageList.scrollToPosition(messages.size() - 1);
+                            ArrayList<ChatMessage> newMessages = chat.getMessages();
+                            processNewMessages(newMessages);
                         }
                         else
                             Toast.makeText(ChatActivity.this, "Firebase error while getting messages!",
@@ -226,19 +283,45 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
 
-    private void updateHeader(Chat chat) {
-        String[] mails = chatName.split("_");
-        if (mails[0].matches(user.geteMail())) {
-            avatarUrl = chat.getAvatar2();
-            if (!avatarUrl.matches("default"))
-                Picasso.get().load(avatarUrl).into(headerAvatar);
-            headerUsername.setText(chat.getUsername2());
-        } else {
-            avatarUrl = chat.getAvatar1();
-            if (!avatarUrl.matches("default"))
-                Picasso.get().load(avatarUrl).into(headerAvatar);
-            headerUsername.setText(chat.getUsername1());
+    private void processNewMessages(ArrayList<ChatMessage> newMessages) {
+        String currentUsername = currentUser.getUser().getUsername();
+
+        for (int i=0; i<newMessages.size(); i++) {
+            if (!newMessages.get(i).getSender().equals(currentUsername)) {
+                messages.add(newMessages.get(i));
+                messageListAdapter.notifyDataSetChanged();
+                writeToLocal(newMessages.get(i));
+                newMessages.get(i).setTransmitted(true);
+            }
         }
+
+        for (Iterator<ChatMessage> iterator = newMessages.iterator(); iterator.hasNext(); ) {
+            ChatMessage cm = iterator.next();
+            if (cm.isTransmitted()) {
+                iterator.remove();
+            }
+        }
+
+        db.collection("chat").document(chatName).update("messages", newMessages);
+    }
+
+    private void writeToLocal(ChatMessage chatMessage) {
+        String query = "REPLACE INTO " + Constants.TABLE_MESSAGES + "(chatName, " +
+                "sender, message, sendDate) " +
+                "VALUES (?, ?, ?, ?)";
+
+        SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
+         sqLiteStatement.bindString(1, chatName);
+         sqLiteStatement.bindString(2, chatMessage.getSender());
+         sqLiteStatement.bindString(3, chatMessage.getMessage());
+         sqLiteStatement.bindLong(4, chatMessage.getSendDate());
+         sqLiteStatement.execute();
+    }
+
+    private void updateHeader() {
+        headerUsername.setText(chatUsername);
+        if (!avatarUrl.equals("default"))
+            Picasso.get().load(avatarUrl).into(headerAvatar);
     }
 
     private void createPopUp() {

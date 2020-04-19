@@ -98,7 +98,7 @@ public class HomeActivity extends AppCompatActivity {
         localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
                 Constants.TABLE_CHAT +
                 "(chatName VARCHAR PRIMARY KEY, basedOn INT, username1 VARCHAR, username2 VARCHAR, " +
-                "avatar1 VARCHAR, avatar2 VARCHAR, lastMessage VARCHAR, createDate LONG)");
+                "avatar1 VARCHAR, avatar2 VARCHAR, lastMessage VARCHAR, lastMessageDate LONG)");
 
         recyclerView.addOnItemTouchListener(
                 new RecyclerItemClickListener(getApplicationContext(), recyclerView,
@@ -106,6 +106,15 @@ public class HomeActivity extends AppCompatActivity {
                             @Override public void onItemClick(View view, int position) {
                                 Intent intentToChat = new Intent(HomeActivity.this, ChatActivity.class);
                                 intentToChat.putExtra("chatName", chats.get(position).getChatName());
+                                String[] mails = chats.get(position).getChatName().split("_");
+                                // ToDo: Fix '_' problem
+                                if (mails[0].equals(currentUser.getUser().geteMail())) {
+                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2());
+                                    intentToChat.putExtra("chatUsername", chats.get(position).getUsername2());
+                                } else {
+                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1());
+                                    intentToChat.putExtra("chatUsername", chats.get(position).getUsername1());
+                                }
                                 startActivity(intentToChat);
                             }
 
@@ -161,7 +170,7 @@ public class HomeActivity extends AppCompatActivity {
         int avatar1 = cursor.getColumnIndex("avatar1");
         int avatar2 = cursor.getColumnIndex("avatar2");
         int lastMessage = cursor.getColumnIndex("lastMessage");
-        int createDate = cursor.getColumnIndex("createDate");
+        int lastMessageDate = cursor.getColumnIndex("lastMessageDate");
 
         // ToDo: test_user_1@gmail.com -> split -> test -> FIX THAT!!!!
 
@@ -183,7 +192,8 @@ public class HomeActivity extends AppCompatActivity {
                     cursor.getString(avatar1),
                     cursor.getString(avatar2),
                     cursor.getString(lastMessage),
-                    cursor.getLong(createDate)
+                    cursor.getLong(lastMessageDate),
+                    cursor.getLong(lastMessageDate)
             ));
         }
 
@@ -244,53 +254,18 @@ public class HomeActivity extends AppCompatActivity {
                     if (Objects.requireNonNull(task.getResult()).exists()) {
                         getRandomUser(pastLim);
                     } else {
-                        randomChat(randUser);
+                        final String randUsername = randUser.getUsername();
+                        final String randEmail = randUser.geteMail();
+                        final String randAvatar = randUser.getAvatarUrl();
+
+                        createChat(randEmail, randUsername, randAvatar, Constants.BASED_RANDOM);
                     }
                 }
             }
         });
     }
 
-    private void randomChat(User randUser) {
-        final String randUsername = randUser.getUsername();
-        final String randEmail = randUser.geteMail();
-        final String randAvatar = randUser.getAvatarUrl();
-
-        db.collection("userDetail").document(currentUser.getUser().geteMail())
-                .update("matches", FieldValue.arrayUnion(randEmail))
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        db.collection("userDetail").document(randEmail)
-                                .update("matches", FieldValue.arrayUnion(currentUser.getUser().geteMail()))
-                                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                    @Override
-                                    public void onSuccess(Void aVoid) {
-                                        ArrayList<String> matches = currentUser.getUser().getMatches();
-                                        matches.add(randEmail);
-                                        currentUser.getUser().setMatches(matches);
-                                        createChat(randEmail, randUsername, randAvatar, Constants.BASED_RANDOM);
-                                    }
-                                })
-                                .addOnFailureListener(new OnFailureListener() {
-                                    @Override
-                                    public void onFailure(@NonNull Exception e) {
-                                        Toast.makeText(HomeActivity.this, e.getLocalizedMessage(),
-                                                Toast.LENGTH_LONG).show();
-                                    }
-                                });
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(HomeActivity.this, e.getLocalizedMessage(),
-                                Toast.LENGTH_LONG).show();
-                    }
-                });
-    }
-
-    private void createChat(String matchMail, String matchUsername, String matchAvatar, int basedOn) {
+    private void createChat(final String matchMail, String matchUsername, String matchAvatar, int basedOn) {
         String currentUserMail = currentUser.getUser().geteMail();
         String currentUsername = currentUser.getUser().getUsername();
         String currentAvatar = currentUser.getUser().getAvatarUrl();
@@ -313,80 +288,71 @@ public class HomeActivity extends AppCompatActivity {
         }
 
         long createDate = Timestamp.now().getSeconds();
-        Chat chat = new Chat(chatName, basedOn, username1, username2,
-                avatar1, avatar2, lastMessage, createDate);
-        addChatToDb(chat, matchMail);
-    }
+        final Chat chat = new Chat(chatName, basedOn, username1, username2,
+                avatar1, avatar2, lastMessage, createDate, createDate);
 
-    private void addChatToDb(final Chat chat, final String matchMail) {
         db.collection("chat").document(chat.getChatName()).set(chat)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Intent intentToChat = new Intent(HomeActivity.this, ChatActivity.class);
-                        intentToChat.putExtra("chatName", chat.getChatName());
-                        startActivity(intentToChat);
+                        updateMatchField(matchMail, chat);
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        // Remove match from db
-                        db.collection("userDetail").document(currentUser.getUser().geteMail())
-                                .update("matches", FieldValue.arrayRemove(matchMail));
                         Toast.makeText(HomeActivity.this, e.getLocalizedMessage(),
                                 Toast.LENGTH_LONG).show();
                     }
                 });
     }
 
-    /*
-    private void updateUser() {
-        db.collection("userDetail").document(user.geteMail()).get()
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+    private void updateMatchField(final String matchMail, final Chat chat) {
+        db.collection("userDetail").document(currentUser.getUser().geteMail())
+                .update("matches", FieldValue.arrayUnion(matchMail))
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
-                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        User user = documentSnapshot.toObject(User.class);
-                        assert user != null;
-                        CurrentUser currentUser = CurrentUser.getInstance();
-                        currentUser.setUser(user);
-                        ArrayList<String> newMatches = currentUser.getUser().getMatches();
-                        matches = getFromLocalDb();
-                        if (matches.isEmpty()) {
-                            matches = newMatches;
-                            getFromCloud(newMatches);
-                        } else {
-                            newMatches.removeAll(matches);
-                            getFromCloud(newMatches);
-                        }
-                        listen();
-                        listenChatMessages();
-                    }
-                }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Toast.makeText(HomeActivity.this, "Error loading chats!",
-                        Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-    */
+                    public void onSuccess(Void aVoid) {
+                        db.collection("userDetail").document(matchMail)
+                                .update("matches", FieldValue.arrayUnion(currentUser.getUser().geteMail()))
+                                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                    @Override
+                                    public void onSuccess(Void aVoid) {
+                                        currentUser.getUser().getMatches().add(matchMail);
 
-    /*
-    private ArrayList<String> generateChatNames() {
-        String currentUserMail = currentUser.getUser().geteMail();
-        ArrayList<String> matches = currentUser.getUser().getMatches();
-        ArrayList<String> chatNames = new ArrayList<>();
-        for (int i=0; i<matches.size(); i++) {
-            String matchMail = matches.get(i);
-            if (currentUserMail.compareTo(matchMail) < 0)
-                chatNames.add(currentUserMail + "_" + matchMail);
-            else
-                chatNames.add(matchMail + "_" + currentUserMail);
-        }
-        return chatNames;
+                                        Intent intentToChat = new Intent(HomeActivity.this, ChatActivity.class);
+                                        intentToChat.putExtra("chatName", chat.getChatName());
+
+                                        String[] mails = chat.getChatName().split("_");
+                                        // ToDo: Fix '_' problem
+                                        if (mails[0].equals(currentUser.getUser().geteMail())) {
+                                            intentToChat.putExtra("chatAvatar", chat.getAvatar2());
+                                            intentToChat.putExtra("chatUsername", chat.getUsername2());
+                                        } else {
+                                            intentToChat.putExtra("chatAvatar", chat.getAvatar1());
+                                            intentToChat.putExtra("chatUsername", chat.getUsername1());
+                                        }
+                                        Log.d("INTENT", chat.getAvatar1() + " " + chat.getAvatar2() + " " + chat.getUsername1() + " " + chat.getUsername2());
+                                        startActivity(intentToChat);
+                                    }
+                                })
+                                .addOnFailureListener(new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        Toast.makeText(HomeActivity.this, e.getLocalizedMessage(),
+                                                Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(HomeActivity.this, e.getLocalizedMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
     }
-    */
 
     private ArrayList<String> generateChatNames(ArrayList<String> matches) {
         String currentUserMail = currentUser.getUser().geteMail();
@@ -406,7 +372,6 @@ public class HomeActivity extends AppCompatActivity {
             return;
 
         ArrayList<String> chatNames = generateChatNames(matches);
-
         db.collection("chat").whereIn(FieldPath.documentId(), chatNames).get()
                 .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
@@ -444,9 +409,6 @@ public class HomeActivity extends AppCompatActivity {
                         currentUser.setUser(updatedUser);
                         ArrayList<String> newMatches = updatedUser.getMatches();
                         newMatches.removeAll(matches);
-                        if (DEBUG)
-                            for (int i=0; i<newMatches.size(); i++)
-                                Log.d("MATCHES_LISTEN", newMatches.get(i));
                         getFromCloud(newMatches);
                     }
                 }
@@ -469,7 +431,7 @@ public class HomeActivity extends AppCompatActivity {
 
     private void writeToLocalDb() {
         String query = "REPLACE INTO " + Constants.TABLE_CHAT + "(chatName, basedOn, " +
-                "username1, username2, avatar1, avatar2, lastMessage, createDate) " +
+                "username1, username2, avatar1, avatar2, lastMessage, lastMessageDate) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
@@ -484,7 +446,7 @@ public class HomeActivity extends AppCompatActivity {
             sqLiteStatement.bindString(5, c.getAvatar1());
             sqLiteStatement.bindString(6, c.getAvatar2());
             sqLiteStatement.bindString(7, c.getLastMessage());
-            sqLiteStatement.bindLong(8, c.getCreateDate());
+            sqLiteStatement.bindLong(8, c.getLastMessageDate());
 
             try {
                 sqLiteStatement.execute();
@@ -517,8 +479,6 @@ public class HomeActivity extends AppCompatActivity {
                         assert queryDocumentSnapshots != null;
                         for (DocumentChange dc : queryDocumentSnapshots.getDocumentChanges()) {
                             if (dc.getType() == DocumentChange.Type.MODIFIED) {
-                                if (DEBUG)
-                                    Log.d("LISTEN", dc.getDocument().toObject(Chat.class).getChatName());
                                 Chat updatedChat = dc.getDocument().toObject(Chat.class);
                                 for (int i=0; i<chats.size(); i++) {
                                     if (chats.get(i).getChatName().equals(updatedChat.getChatName())) {

@@ -7,13 +7,13 @@ import java.util.ArrayList;
 public class Chat {
 
     private int basedOn, status;
-    private String chatName, username1, username2, avatar1, avatar2;
+    private long createDate, lastMessageDate;
     private ArrayList<ChatMessage> messages;
-    private long createDate;
+    private String chatName, username1, username2, avatar1, avatar2, lastMessage;
 
     Chat() { }
     Chat(String chatName, int basedOn, String username1, String username2,
-         String avatar1, String avatar2, String lastMessage, long createDate) {
+         String avatar1, String avatar2, String lastMessage, long createDate, long lastMessageDate) {
 
         this.chatName = chatName;
         this.basedOn = basedOn;
@@ -24,10 +24,10 @@ public class Chat {
         this.avatar1 = avatar1;
         this.avatar2 = avatar2;
 
+        this.lastMessage = lastMessage;
+        this.lastMessageDate = lastMessageDate;
         this.createDate = createDate;
-
         this.messages = new ArrayList<>();
-        this.messages.add(new ChatMessage(Constants.SENDER_BROADCAST, lastMessage, createDate));
     }
 
     @Override
@@ -38,15 +38,7 @@ public class Chat {
             return false;
         Chat chat = (Chat) obj;
         return this.chatName.equals(chat.getChatName()) &&
-                this.getLastMessage().equals(chat.getLastMessage());
-    }
-
-    public String getLastMessage() {
-        return this.messages.get(this.messages.size() - 1).getMessage();
-    }
-
-    public long getLastMessageDate() {
-        return this.messages.get(this.messages.size() - 1).getSendDate();
+                this.lastMessage.equals(chat.getLastMessage());
     }
 
     public String getChatName() {
@@ -120,4 +112,21 @@ public class Chat {
     public void setCreateDate(long createDate) {
         this.createDate = createDate;
     }
+
+    public long getLastMessageDate() {
+        return lastMessageDate;
+    }
+
+    public void setLastMessageDate(long lastMessageDate) {
+        this.lastMessageDate = lastMessageDate;
+    }
+
+    public String getLastMessage() {
+        return lastMessage;
+    }
+
+    public void setLastMessage(String lastMessage) {
+        this.lastMessage = lastMessage;
+    }
+
 }
