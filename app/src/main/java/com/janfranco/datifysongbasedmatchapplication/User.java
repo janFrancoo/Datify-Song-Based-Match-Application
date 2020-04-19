@@ -9,10 +9,10 @@ public class User {
     private String eMail, username, avatarUrl, bio, gender;
     private ArrayList<String> matches;
     private int random;
-    // ToDo: Add create date!
+    private long createDate;
 
     public User() { }
-    public User(String eMail, String username, int random) {
+    public User(String eMail, String username, int random, long createDate) {
         this.eMail = eMail;
         this.username = username;
         this.avatarUrl = "default";
@@ -20,6 +20,7 @@ public class User {
         this.gender = "";
         this.matches = new ArrayList<>();
         this.random = random;
+        this.createDate = createDate;
     }
 
     public String geteMail() {
@@ -77,5 +78,12 @@ public class User {
     public void setRandom(int random) {
         this.random = random;
     }
-    
+
+    public long getCreateDate() {
+        return createDate;
+    }
+
+    public void setCreateDate(long createDate) {
+        this.createDate = createDate;
+    }
 }

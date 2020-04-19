@@ -1,12 +1,10 @@
 package com.janfranco.datifysongbasedmatchapplication;
 
 import android.annotation.SuppressLint;
-import android.text.Layout;
-import android.util.Log;
+import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -37,7 +35,7 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
     public void onBindViewHolder(@NonNull PostHolder holder, int position) {
         ChatMessage message = messages.get(position);
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) holder.messageWrapper.getLayoutParams();
-
+        // ToDo: Find a better solution that will work properly
         if (message.getSender().equals(currentUsername)) {
             params.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
             holder.messageWrapper.setLayoutParams(params);
@@ -46,8 +44,10 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
             holder.messageWrapper.setLayoutParams(params);
         }
         holder.message.setText(message.getMessage());
-        holder.date.setText("15.04.20 22:05");
-        // ToDo: Add date!
+        holder.date.setText(DateFormat.format(
+                Constants.DATE_MESSAGE,
+                message.getSendDate() * 1000L
+        ).toString());
     }
 
     @Override

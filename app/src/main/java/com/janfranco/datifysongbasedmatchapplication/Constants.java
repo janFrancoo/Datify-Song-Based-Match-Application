@@ -79,4 +79,11 @@ class Constants {
     // Other
     static String SENDER_BROADCAST = "broadcast";
 
+    // Date
+    static String DATE_MESSAGE = "HH:mm"; // Hours and minutes for chat messages
+
+    // Local Database
+    static String DB_NAME = "Chat";
+    static String TABLE_CHAT = "chats";
+
 }

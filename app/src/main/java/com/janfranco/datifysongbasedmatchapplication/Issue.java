@@ -3,12 +3,12 @@ package com.janfranco.datifysongbasedmatchapplication;
 public class Issue {
 
     private String eMail, issue;
+    private long createDate;
 
-    // ToDo: Add create time
-
-    Issue(String eMail, String issue) {
+    Issue(String eMail, String issue, long createDate) {
         this.eMail = eMail;
         this.issue = issue;
+        this.createDate = createDate;
     }
 
     public String geteMail() {
@@ -27,4 +27,11 @@ public class Issue {
         this.issue = issue;
     }
 
+    public long getCreateDate() {
+        return createDate;
+    }
+
+    public void setCreateDate(long createDate) {
+        this.createDate = createDate;
+    }
 }

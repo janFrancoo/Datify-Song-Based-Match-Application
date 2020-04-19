@@ -38,6 +38,7 @@ import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -372,7 +373,8 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void saveIssue(String issueText) {
         CurrentUser user = CurrentUser.getInstance();
-        Issue issue = new Issue(user.getUser().geteMail(), issueText);
+        long createDate = Timestamp.now().getSeconds();
+        Issue issue = new Issue(user.getUser().geteMail(), issueText, createDate);
         db.collection("report").add(issue)
                 .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
             @Override

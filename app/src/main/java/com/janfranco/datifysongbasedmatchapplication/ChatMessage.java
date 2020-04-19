@@ -4,13 +4,14 @@ class ChatMessage {
 
     private String sender, message;
     private boolean transmitted;
-    // ToDo: Add date!
+    private long sendDate;
 
     ChatMessage() { }
-    ChatMessage(String sender, String message) {
+    ChatMessage(String sender, String message, long sendDate) {
         this.message = message;
         this.sender = sender;
         this.transmitted = false;
+        this.sendDate = sendDate;
     }
 
     public String getSender() {
@@ -37,4 +38,11 @@ class ChatMessage {
         this.transmitted = transmitted;
     }
 
+    public long getSendDate() {
+        return sendDate;
+    }
+
+    public void setSendDate(long sendDate) {
+        this.sendDate = sendDate;
+    }
 }

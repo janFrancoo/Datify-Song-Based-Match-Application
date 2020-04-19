@@ -6,6 +6,49 @@
     android:layout_height="match_parent"
     tools:context=".ChatActivity">
 
+    <RelativeLayout
+        android:id="@+id/userHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:background="@color/colorPrimaryDark"
+        android:paddingLeft="15dp"
+        android:paddingRight="15dp"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/userHeaderAvatar"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:src="@drawable/defaultavatar"
+            android:layout_centerVertical="true"
+            app:layout_constraintStart_toStartOf="parent"
+            app:civ_border_color="#FFFFFF"
+            app:civ_border_width="2dp"/>
+
+        <TextView
+            android:id="@+id/userHeaderUsername"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@+id/userHeaderAvatar"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="25dp"
+            android:text="username"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"/>
+
+        <Button
+            android:id="@+id/userHeaderBackBtn"
+            android:layout_width="25dp"
+            android:layout_height="32dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true" />
+
+    </RelativeLayout>
+
     <EditText
         android:id="@+id/messageInput"
         android:layout_width="323dp"
@@ -19,7 +62,7 @@
         android:id="@+id/sendMessageBtn"
         android:layout_width="wrap_content"
         android:layout_height="45dp"
-        android:text="Button"
+        android:text="Send"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -27,8 +70,8 @@
         android:id="@+id/messageList"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="#C82525"
         app:layout_constraintBottom_toTopOf="@+id/messageInput"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/userHeader" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

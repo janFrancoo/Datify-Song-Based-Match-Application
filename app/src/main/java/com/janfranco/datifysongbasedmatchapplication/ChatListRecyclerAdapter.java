@@ -1,6 +1,7 @@
 package com.janfranco.datifysongbasedmatchapplication;
 
 import android.annotation.SuppressLint;
+import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,15 +37,19 @@ public class ChatListRecyclerAdapter extends RecyclerView.Adapter<ChatListRecycl
     public void onBindViewHolder(@NonNull PostHolder holder, int position) {
         Chat chat = chats.get(position);
         if (chat.getUsername1().equals(currentUsername)) {
-            Picasso.get().load(chat.getAvatar2()).into(holder.avatar);
+            if (!chat.getAvatar2().matches("default"))
+                Picasso.get().load(chat.getAvatar2()).into(holder.avatar);
             holder.username.setText(chat.getUsername2());
         } else {
-            Picasso.get().load(chat.getAvatar1()).into(holder.avatar);
+            if (!chat.getAvatar1().matches("default"))
+                Picasso.get().load(chat.getAvatar1()).into(holder.avatar);
             holder.username.setText(chat.getUsername1());
         }
         holder.message.setText(chat.getLastMessage());
-        holder.date.setText("15.04.20 22:05");
-        // ToDo: Add date!
+        holder.date.setText(DateFormat.format(
+                Constants.DATE_MESSAGE,
+                chat.getLastMessageDate() * 1000L
+        ).toString());
     }
 
     @Override

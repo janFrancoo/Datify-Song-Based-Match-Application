@@ -25,6 +25,7 @@ import android.widget.Toast;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FieldValue;
@@ -205,7 +206,8 @@ public class RegisterActivity extends AppCompatActivity {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {
                 if (task.isSuccessful()) {
-                    final User user = new User(eMail, username, randomVal);
+                    long createDate = Timestamp.now().getSeconds();
+                    final User user = new User(eMail, username, randomVal, createDate);
                     db.collection("userDetail").document(eMail).set(user)
                             .addOnCompleteListener(new OnCompleteListener<Void>() {
                                 @Override
