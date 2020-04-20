@@ -18,6 +18,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -36,12 +37,15 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.WriteBatch;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Picasso;
@@ -49,8 +53,6 @@ import com.squareup.picasso.Picasso;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
-
-// ToDo: Update all chats when update avatar
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -67,12 +69,15 @@ public class SettingsActivity extends AppCompatActivity {
     private EditText bio;
     private Uri imgData;
     private PopupWindow loadPopUp;
+    private String avatarUrlOld;
+    private CurrentUser currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
+        currentUser = CurrentUser.getInstance();
         fromRegister = getIntent().getBooleanExtra("register", false);
 
         avatar = findViewById(R.id.settingsAvatar);
@@ -126,10 +131,7 @@ public class SettingsActivity extends AppCompatActivity {
             updateComponentsFirstTime();
         else
             getDataAndUpdateComponents();
-    }
 
-    @Override
-    protected void onStart() {
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         storage = FirebaseStorage.getInstance();
@@ -153,8 +155,6 @@ public class SettingsActivity extends AppCompatActivity {
                     bio.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
             }
         });
-
-        super.onStart();
     }
 
     @Override
@@ -230,14 +230,13 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void getDataAndUpdateComponents() {
-        CurrentUser currentUser = CurrentUser.getInstance();
-        User user = currentUser.getUser();
+        avatarUrlOld = currentUser.getUser().getAvatarUrl();
 
-        bio.setText(user.getBio());
-        if (!user.getAvatarUrl().equals("default"))
-            Picasso.get().load(user.getAvatarUrl()).into(avatar);
+        bio.setText(currentUser.getUser().getBio());
+        if (!currentUser.getUser().getAvatarUrl().equals("default"))
+            Picasso.get().load(currentUser.getUser().getAvatarUrl()).into(avatar);
 
-        switch (user.getGender()) {
+        switch (currentUser.getUser().getGender()) {
             case "unknown":
                 genderSpinner.setSelection(0, true);
                 break;
@@ -262,13 +261,11 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void update() {
         loadPopUp();
-        final CurrentUser currentUser = CurrentUser.getInstance();
-        final User user = currentUser.getUser();
         if (selectedGender.equals("Select gender"))
-            user.setGender("unknown");
+            currentUser.getUser().setGender("unknown");
         else
-            user.setGender(selectedGender);
-        user.setBio(bio.getText().toString().trim());
+            currentUser.getUser().setGender(selectedGender);
+        currentUser.getUser().setBio(bio.getText().toString().trim());
 
         if (imgData != null) {
             UUID uuid = UUID.randomUUID();
@@ -281,9 +278,8 @@ public class SettingsActivity extends AppCompatActivity {
                                     .addOnSuccessListener(new OnSuccessListener<Uri>() {
                                         @Override
                                         public void onSuccess(Uri uri) {
-                                            user.setAvatarUrl(uri.toString());
-                                            currentUser.setUser(user);
-                                            updateDb(user);
+                                            currentUser.getUser().setAvatarUrl(uri.toString());
+                                            updateDb();
                                         }
                                     })
                                     .addOnFailureListener(new OnFailureListener() {
@@ -307,22 +303,18 @@ public class SettingsActivity extends AppCompatActivity {
                         }
                     });
         } else {
-            currentUser.setUser(user);
-            updateDb(user);
+            updateDb();
         }
     }
 
-    private void updateDb(User user) {
-        db.collection("userDetail").document(user.geteMail()).set(user)
+    private void updateDb() {
+        db.collection("userDetail").document(currentUser.getUser().geteMail()).set(currentUser.getUser())
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
                         Toast.makeText(SettingsActivity.this, "Settings are successfully applied!",
                                 Toast.LENGTH_LONG).show();
-                        if (loadPopUp != null)
-                            loadPopUp.dismiss();
-                        Intent intentToHome = new Intent(SettingsActivity.this, LoginActivity.class);
-                        startActivity(intentToHome);
+                        updateChats();
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -374,9 +366,8 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void saveIssue(String issueText) {
-        CurrentUser user = CurrentUser.getInstance();
         long createDate = Timestamp.now().getSeconds();
-        Issue issue = new Issue(user.getUser().geteMail(), issueText, createDate);
+        Issue issue = new Issue(currentUser.getUser().geteMail(), issueText, createDate);
         db.collection("report").add(issue)
                 .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
             @Override
@@ -419,6 +410,50 @@ public class SettingsActivity extends AppCompatActivity {
         loadPopUp.setElevation(50);
         loadPopUp.showAtLocation(getWindow().getDecorView().findViewById(android.R.id.content),
                 Gravity.CENTER, 0, 0);
+    }
+
+    private void updateChats() {
+        String avatarUrlNew = currentUser.getUser().getAvatarUrl();
+        if (avatarUrlOld != null && !avatarUrlOld.equals(avatarUrlNew)) {
+            ArrayList<String> chatNames = generateChatNames();
+            WriteBatch updateBatch = db.batch();
+            for (int i=0; i<chatNames.size(); i++) {
+                // ToDo: Fix '_' split problem
+                String[] mails = chatNames.get(i).split("_");
+                if (mails[0].equals(currentUser.getUser().geteMail()))
+                    updateBatch.update(db.collection("chat").document(chatNames.get(i)),
+                            "avatar1", currentUser.getUser().getAvatarUrl());
+                else
+                    updateBatch.update(db.collection("chat").document(chatNames.get(i)),
+                            "avatar2", currentUser.getUser().getAvatarUrl());
+            }
+            updateBatch.commit().addOnCompleteListener(new OnCompleteListener<Void>() {
+                @Override
+                public void onComplete(@NonNull Task<Void> task) {
+                    if (loadPopUp != null)
+                        loadPopUp.dismiss();
+                    Intent intentToHome = new Intent(SettingsActivity.this, HomeActivity.class);
+                    startActivity(intentToHome);
+                }
+            });
+        } else {
+            if (loadPopUp != null)
+                loadPopUp.dismiss();
+            Intent intentToHome = new Intent(SettingsActivity.this, HomeActivity.class);
+            startActivity(intentToHome);
+        }
+    }
+
+    private ArrayList<String> generateChatNames() {
+        ArrayList<String> chatNames = new ArrayList<>();
+        for (int i=0; i<currentUser.getUser().getMatches().size(); i++) {
+            String matchMail = currentUser.getUser().getMatches().get(i);
+            if (currentUser.getUser().geteMail().compareTo(matchMail) < 0)
+                chatNames.add(currentUser.getUser().geteMail() + "_" + matchMail);
+            else
+                chatNames.add(matchMail + "_" + currentUser.getUser().geteMail());
+        }
+        return chatNames;
     }
 
 }

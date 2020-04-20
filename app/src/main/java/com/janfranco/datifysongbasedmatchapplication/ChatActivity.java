@@ -27,8 +27,10 @@ import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -41,6 +43,7 @@ import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Objects;
 
 public class ChatActivity extends AppCompatActivity {
 
@@ -188,13 +191,13 @@ public class ChatActivity extends AppCompatActivity {
 
         if (registration != null)
             registration.remove();
+
+        removeTransmittedMessagesFromCloud();
     }
 
     private void listen() {
         if (chatName == null)
             return;
-
-        final String currentUsername = currentUser.getUser().getUsername();
 
         final DocumentReference ref = db.collection("chat").document(chatName);
         registration = ref.addSnapshotListener(new EventListener<DocumentSnapshot>() {
@@ -206,26 +209,28 @@ public class ChatActivity extends AppCompatActivity {
                     return;
                 }
 
-                if (snapshot != null && snapshot.exists() && snapshot.getData() != null) {
+                if (snapshot != null && snapshot.exists()) {
                     Chat updatedChat = snapshot.toObject(Chat.class);
                     if (updatedChat != null) {
                         ArrayList<ChatMessage> fromDb = updatedChat.getMessages();
-                        fromDb.removeAll(messages);
                         for (int i=0; i<fromDb.size(); i++) {
-                            if (!fromDb.get(i).getSender().equals(currentUsername)) {
-                                messages.add(fromDb.get(i));
-                                writeToLocal(fromDb.get(i));
-                                fromDb.get(i).setTransmitted(true);
+                            ChatMessage cm = fromDb.get(i);
+                            if (!messages.contains(cm)) {
+                                messages.add(cm);
+                                writeToLocal(cm);
                             }
+                            if (!cm.getSender().equals(currentUser.getUser().getUsername()))
+                                fromDb.get(i).setTransmitted(true);
                         }
                         messageListAdapter.notifyDataSetChanged();
 
-                        for (Iterator<ChatMessage> iterator = fromDb.iterator(); iterator.hasNext(); ) {
+                        /*for (Iterator<ChatMessage> iterator = fromDb.iterator(); iterator.hasNext(); ) {
                             ChatMessage cm = iterator.next();
                             if (cm.isTransmitted()) {
                                 iterator.remove();
                             }
                         }
+                        */
                         db.collection("chat").document(chatName).update("messages", fromDb);
                     }
                     else
@@ -284,23 +289,23 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void processNewMessages(ArrayList<ChatMessage> newMessages) {
-        String currentUsername = currentUser.getUser().getUsername();
-
         for (int i=0; i<newMessages.size(); i++) {
-            if (!newMessages.get(i).getSender().equals(currentUsername)) {
-                messages.add(newMessages.get(i));
-                messageListAdapter.notifyDataSetChanged();
-                writeToLocal(newMessages.get(i));
-                newMessages.get(i).setTransmitted(true);
+            ChatMessage cm = newMessages.get(i);
+            if (!messages.contains(cm)) {
+                messages.add(cm);
+                writeToLocal(cm);
             }
+            if (!cm.getSender().equals(currentUser.getUser().getUsername()))
+                newMessages.get(i).setTransmitted(true);
         }
+        messageListAdapter.notifyDataSetChanged();
 
-        for (Iterator<ChatMessage> iterator = newMessages.iterator(); iterator.hasNext(); ) {
+        /*for (Iterator<ChatMessage> iterator = newMessages.iterator(); iterator.hasNext(); ) {
             ChatMessage cm = iterator.next();
             if (cm.isTransmitted()) {
                 iterator.remove();
             }
-        }
+        }*/
 
         db.collection("chat").document(chatName).update("messages", newMessages);
     }
@@ -349,6 +354,27 @@ public class ChatActivity extends AppCompatActivity {
             public boolean onTouch(View v, MotionEvent event) {
                 popupWindow.dismiss();
                 return true;
+            }
+        });
+    }
+
+    public void removeTransmittedMessagesFromCloud() {
+        final String currentUsername = currentUser.getUser().getUsername();
+        db.collection("chat").document(chatName).get()
+                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                if (task.isSuccessful()) {
+                    Chat chat = Objects.requireNonNull(task.getResult()).toObject(Chat.class);
+                    assert chat != null;
+                    ArrayList<ChatMessage> cmList = chat.getMessages();
+                    for (Iterator<ChatMessage> iterator = cmList.iterator(); iterator.hasNext();) {
+                        ChatMessage cm = iterator.next();
+                        if (cm.isTransmitted() && !cm.getSender().equals(currentUsername))
+                            iterator.remove();
+                    }
+                    db.collection("chat").document(chatName).update("messages", cmList);
+                }
             }
         });
     }

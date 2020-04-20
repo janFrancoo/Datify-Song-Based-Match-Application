@@ -41,8 +41,6 @@ import java.util.Random;
 
 public class HomeActivity extends AppCompatActivity {
 
-    final boolean DEBUG = true;
-
     private CurrentUser currentUser;
     private FirebaseFirestore db;
     private ArrayList<Chat> chats;
@@ -122,29 +120,15 @@ public class HomeActivity extends AppCompatActivity {
                         })
         );
 
-        ArrayList<String> newMatches = currentUser.getUser().getMatches();
+        ArrayList<String> newMatchesSafe = currentUser.getUser().getMatches();
+        ArrayList<String> newMatches = new ArrayList<>(newMatchesSafe);
+
         matches = getFromLocalDb();
-
-        if (DEBUG)
-            for (int i=0; i<newMatches.size(); i++)
-                Log.d("NEW_MATCHES", newMatches.get(i));
-
-        if (DEBUG)
-            for (int i=0; i<matches.size(); i++)
-                Log.d("MATCHES", matches.get(i));
 
         if (matches.isEmpty())
             matches = newMatches;
         else
             newMatches.removeAll(matches);
-
-        if (DEBUG)
-            for (int i=0; i<matches.size(); i++)
-                Log.d("MATCHES_AFTER", matches.get(i));
-
-        if (DEBUG)
-            for (int i=0; i<newMatches.size(); i++)
-                Log.d("NEW_MATCHES_AFTER", newMatches.get(i));
 
         getFromCloud(newMatches);
         listen();
@@ -155,6 +139,7 @@ public class HomeActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
+        listenChatMessages();
         chatListRecyclerAdapter.notifyDataSetChanged();
     }
 
@@ -372,6 +357,7 @@ public class HomeActivity extends AppCompatActivity {
             return;
 
         ArrayList<String> chatNames = generateChatNames(matches);
+
         db.collection("chat").whereIn(FieldPath.documentId(), chatNames).get()
                 .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
@@ -379,9 +365,15 @@ public class HomeActivity extends AppCompatActivity {
                         if (task.isSuccessful()) {
                             for (QueryDocumentSnapshot document : Objects.requireNonNull(task.getResult())) {
                                 Chat chat = document.toObject(Chat.class);
+                                for (int i=0; i<chats.size(); i++)
+                                    if (chats.get(i).getChatName().equals(chat.getChatName())) {
+                                        chats.remove(i);
+                                        break;
+                                    }
                                 chats.add(chat);
                             }
                             chatListRecyclerAdapter.notifyDataSetChanged();
+                            listenChatMessages();
                             writeToLocalDb();
                         } else {
                             Toast.makeText(HomeActivity.this, "Error while loading chats!",
@@ -407,7 +399,8 @@ public class HomeActivity extends AppCompatActivity {
                     User updatedUser = snapshot.toObject(User.class);
                     if (updatedUser != null) {
                         currentUser.setUser(updatedUser);
-                        ArrayList<String> newMatches = updatedUser.getMatches();
+                        ArrayList<String> newMatchesSafe = updatedUser.getMatches();
+                        ArrayList<String> newMatches = new ArrayList<>(newMatchesSafe);
                         newMatches.removeAll(matches);
                         getFromCloud(newMatches);
                     }
@@ -457,6 +450,9 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private void listenChatMessages() {
+        if (registrationChatMsg != null)
+            registrationChatMsg.remove();
+
         ArrayList<String> chatNames = new ArrayList<>();
         for (int i=0; i<chats.size(); i++) {
             chatNames.add(chats.get(i).getChatName());
@@ -471,7 +467,7 @@ public class HomeActivity extends AppCompatActivity {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
                         if (e != null) {
-                            Toast.makeText(HomeActivity.this, "Live listening erro!",
+                            Toast.makeText(HomeActivity.this, "Live listening error!",
                                     Toast.LENGTH_SHORT).show();
                             return;
                         }

@@ -38,7 +38,9 @@ public class Chat {
             return false;
         Chat chat = (Chat) obj;
         return this.chatName.equals(chat.getChatName()) &&
-                this.lastMessage.equals(chat.getLastMessage());
+                this.lastMessage.equals(chat.getLastMessage()) &&
+                this.avatar1.equals(chat.getAvatar1()) &&
+                this.avatar2.equals(chat.getAvatar2());
     }
 
     public String getChatName() {
