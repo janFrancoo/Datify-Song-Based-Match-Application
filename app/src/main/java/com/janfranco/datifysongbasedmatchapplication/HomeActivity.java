@@ -104,9 +104,10 @@ public class HomeActivity extends AppCompatActivity {
                             @Override public void onItemClick(View view, int position) {
                                 Intent intentToChat = new Intent(HomeActivity.this, ChatActivity.class);
                                 intentToChat.putExtra("chatName", chats.get(position).getChatName());
-                                String[] mails = chats.get(position).getChatName().split("_");
-                                // ToDo: Fix '_' problem
-                                if (mails[0].equals(currentUser.getUser().geteMail())) {
+                                int offset = getOffsetOfCharSequence(
+                                        chats.get(position).getChatName(),
+                                        currentUser.getUser().geteMail());
+                                if (offset == 0) {
                                     intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2());
                                     intentToChat.putExtra("chatUsername", chats.get(position).getUsername2());
                                 } else {
@@ -157,15 +158,16 @@ public class HomeActivity extends AppCompatActivity {
         int lastMessage = cursor.getColumnIndex("lastMessage");
         int lastMessageDate = cursor.getColumnIndex("lastMessageDate");
 
-        // ToDo: test_user_1@gmail.com -> split -> test -> FIX THAT!!!!
-
+        String currentUserMail = currentUser.getUser().geteMail();
         while (cursor.moveToNext()) {
             String chatNames = cursor.getString(cName);
-            String[] users = chatNames.split("_");
-            if (users[0].equals(currentUser.getUser().geteMail()))
-                newMatches.add(users[1]);
-            else if (users[1].equals(currentUser.getUser().geteMail()))
-                newMatches.add(users[0]);
+            int offset = getOffsetOfCharSequence(
+                    chatNames,
+                    currentUserMail);
+            if (offset == 0)
+                newMatches.add(chatNames.substring(currentUserMail.length()));
+            else if (offset != -1)
+                newMatches.add(chatNames.substring(0, chatNames.length() - currentUserMail.length() - 1));
             else
                 continue;
 
@@ -308,9 +310,10 @@ public class HomeActivity extends AppCompatActivity {
                                         Intent intentToChat = new Intent(HomeActivity.this, ChatActivity.class);
                                         intentToChat.putExtra("chatName", chat.getChatName());
 
-                                        String[] mails = chat.getChatName().split("_");
-                                        // ToDo: Fix '_' problem
-                                        if (mails[0].equals(currentUser.getUser().geteMail())) {
+                                        int offset = getOffsetOfCharSequence(
+                                                chat.getChatName(),
+                                                currentUser.getUser().geteMail());
+                                        if (offset == 0) {
                                             intentToChat.putExtra("chatAvatar", chat.getAvatar2());
                                             intentToChat.putExtra("chatUsername", chat.getUsername2());
                                         } else {
@@ -489,6 +492,23 @@ public class HomeActivity extends AppCompatActivity {
                         }
                     }
                 });
+    }
+
+     private int getOffsetOfCharSequence(String chatName, String mail) {
+        int match = 0;
+        int mailLen = mail.length();
+
+        for (int i=0; i<chatName.length(); i++) {
+            if (chatName.charAt(i) == mail.charAt(match)) {
+                match += 1;
+                if (match == mailLen)
+                    return i - mailLen + 1;
+            }
+            else
+                match = 0;
+        }
+
+        return -1;
     }
 
 }

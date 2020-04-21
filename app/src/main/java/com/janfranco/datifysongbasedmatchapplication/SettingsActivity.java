@@ -18,7 +18,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -418,9 +417,11 @@ public class SettingsActivity extends AppCompatActivity {
             ArrayList<String> chatNames = generateChatNames();
             WriteBatch updateBatch = db.batch();
             for (int i=0; i<chatNames.size(); i++) {
-                // ToDo: Fix '_' split problem
-                String[] mails = chatNames.get(i).split("_");
-                if (mails[0].equals(currentUser.getUser().geteMail()))
+                int offset = getOffsetOfCharSequence(
+                        chatNames.get(i),
+                        currentUser.getUser().geteMail()
+                );
+                if (offset == 0)
                     updateBatch.update(db.collection("chat").document(chatNames.get(i)),
                             "avatar1", currentUser.getUser().getAvatarUrl());
                 else
@@ -454,6 +455,23 @@ public class SettingsActivity extends AppCompatActivity {
                 chatNames.add(matchMail + "_" + currentUser.getUser().geteMail());
         }
         return chatNames;
+    }
+
+    private int getOffsetOfCharSequence(String chatName, String mail) {
+        int match = 0;
+        int mailLen = mail.length();
+
+        for (int i=0; i<chatName.length(); i++) {
+            if (chatName.charAt(i) == mail.charAt(match)) {
+                match += 1;
+                if (match == mailLen)
+                    return i - mailLen + 1;
+            }
+            else
+                match = 0;
+        }
+
+        return -1;
     }
 
 }

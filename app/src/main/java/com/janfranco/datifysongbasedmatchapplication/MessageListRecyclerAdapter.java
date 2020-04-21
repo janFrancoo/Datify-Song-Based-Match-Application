@@ -26,23 +26,27 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
     @Override
     public PostHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater layoutInflater = LayoutInflater.from(parent.getContext());
-        View view = layoutInflater.inflate(R.layout.messagelist_row, parent, false);
+        View view;
+        if (viewType == 1) {
+            view = layoutInflater.inflate(R.layout.messagelist_row_2, parent, false);
+        } else {
+            view = layoutInflater.inflate(R.layout.messagelist_row, parent, false);
+        }
         return new PostHolder(view);
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        if (messages.get(position).getSender().equals(currentUsername))
+            return 1;
+        else
+            return 0;
     }
 
     @SuppressLint("SetTextI18n")
     @Override
     public void onBindViewHolder(@NonNull PostHolder holder, int position) {
         ChatMessage message = messages.get(position);
-        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) holder.messageWrapper.getLayoutParams();
-        // ToDo: Find a better solution that will work properly
-        if (message.getSender().equals(currentUsername)) {
-            params.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
-            holder.messageWrapper.setLayoutParams(params);
-        } else {
-            params.addRule(RelativeLayout.ALIGN_PARENT_LEFT);
-            holder.messageWrapper.setLayoutParams(params);
-        }
         holder.message.setText(message.getMessage());
         holder.date.setText(DateFormat.format(
                 Constants.DATE_MESSAGE,

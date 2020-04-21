@@ -60,8 +60,6 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView headerAvatar;
     private SQLiteDatabase localDb;
 
-    // ToDo: Add long click listener, if long clicked -> copy contents to input
-
     // ToDo: Add viewed or transmitted into messages using transmitted field!
 
     @Override
@@ -79,10 +77,7 @@ public class ChatActivity extends AppCompatActivity {
 
         TextWatcher textWatcher = new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-                messageList.scrollToPosition(messages.size() - 1);
-                // ToDo: This is a temporary solution, fix when keyboard is showed
-            }
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -147,6 +142,33 @@ public class ChatActivity extends AppCompatActivity {
                     imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
                 }
                 // Hide keyboard after sending
+                messageList.scrollToPosition(messages.size() - 1);
+            }
+        });
+
+        messageList.addOnItemTouchListener(
+                new RecyclerItemClickListener(getApplicationContext(), messageList,
+                        new RecyclerItemClickListener.OnItemClickListener() {
+
+                            @Override
+                            public void onItemClick(View view, int position) { }
+
+                            @Override
+                            public void onLongItemClick(View view, int position) {
+                                messageInput.setText(messages.get(position).getMessage());
+                            }
+                        })
+        );
+
+        messageList.scrollToPosition(messages.size() - 1);
+
+        messageList.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View view, int left, int top, int right, int bottom,
+                                       int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                if (bottom < oldBottom) {
+                    messageList.scrollBy(0, oldBottom - bottom);
+                }
             }
         });
     }
@@ -156,6 +178,7 @@ public class ChatActivity extends AppCompatActivity {
         super.onStart();
 
         messageListAdapter.notifyDataSetChanged();
+        messageList.scrollToPosition(messages.size() - 1);
     }
 
     private void getMessagesFromLocal() {
@@ -182,6 +205,7 @@ public class ChatActivity extends AppCompatActivity {
         }
 
         messageListAdapter.notifyDataSetChanged();
+        messageList.scrollToPosition(messages.size() - 1);
         cursor.close();
     }
 
@@ -223,6 +247,7 @@ public class ChatActivity extends AppCompatActivity {
                                 fromDb.get(i).setTransmitted(true);
                         }
                         messageListAdapter.notifyDataSetChanged();
+                        messageList.scrollToPosition(messages.size() - 1);
 
                         /*for (Iterator<ChatMessage> iterator = fromDb.iterator(); iterator.hasNext(); ) {
                             ChatMessage cm = iterator.next();
@@ -261,6 +286,7 @@ public class ChatActivity extends AppCompatActivity {
                 });
         messages.add(chatMessage);
         messageListAdapter.notifyDataSetChanged();
+        messageList.scrollToPosition(messages.size() - 1);
         writeToLocal(chatMessage);
     }
 
@@ -299,6 +325,7 @@ public class ChatActivity extends AppCompatActivity {
                 newMessages.get(i).setTransmitted(true);
         }
         messageListAdapter.notifyDataSetChanged();
+        messageList.scrollToPosition(messages.size() - 1);
 
         /*for (Iterator<ChatMessage> iterator = newMessages.iterator(); iterator.hasNext(); ) {
             ChatMessage cm = iterator.next();
