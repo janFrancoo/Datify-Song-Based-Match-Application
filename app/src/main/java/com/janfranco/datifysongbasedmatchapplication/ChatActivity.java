@@ -14,6 +14,7 @@ import android.database.sqlite.SQLiteStatement;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -116,17 +117,17 @@ public class ChatActivity extends AppCompatActivity {
         localDb = openOrCreateDatabase(Constants.DB_NAME, Context.MODE_PRIVATE, null);
         localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
                 Constants.TABLE_MESSAGES +
-                "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, PRIMARY KEY (message, sendDate))");
+                "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, " +
+                "transmitted INT, read INT, PRIMARY KEY (message, sendDate))");
 
         messages = new ArrayList<>();
         db = FirebaseFirestore.getInstance();
         currentUser = CurrentUser.getInstance();
 
-        messageListAdapter = new MessageListRecyclerAdapter(currentUser.getUser().getUsername(), messages);
+        messageListAdapter = new MessageListRecyclerAdapter(getApplicationContext(), currentUser.getUser().getUsername(), messages);
         messageList.setAdapter(messageListAdapter);
         getMessagesFromLocal();
         getMessages();
-        listen();
 
         sendMessageBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -191,15 +192,24 @@ public class ChatActivity extends AppCompatActivity {
         int sender = cursor.getColumnIndex("sender");
         int message = cursor.getColumnIndex("message");
         int sendDate = cursor.getColumnIndex("sendDate");
+        int transmitted = cursor.getColumnIndex("transmitted");
+        int read = cursor.getColumnIndex("read");
 
         while (cursor.moveToNext()) {
+            boolean setTransmitted, setRead;
+
+            setTransmitted = cursor.getInt(transmitted) == 1;
+            setRead = cursor.getInt(read) == 1;
+
             if (chatName.equals(cursor.getString(cName))) {
                 ChatMessage cm = new ChatMessage(
                         cursor.getString(sender),
                         cursor.getString(message),
-                        cursor.getLong(sendDate)
+                        cursor.getLong(sendDate),
+                        setTransmitted,
+                        setRead
                 );
-                cm.setTransmitted(true);
+
                 messages.add(cm);
             }
         }
@@ -237,14 +247,21 @@ public class ChatActivity extends AppCompatActivity {
                     Chat updatedChat = snapshot.toObject(Chat.class);
                     if (updatedChat != null) {
                         ArrayList<ChatMessage> fromDb = updatedChat.getMessages();
+                        for (int i=0; i<fromDb.size(); i++)
+                            Log.d("HMMM", fromDb.get(i).getMessage() + " " + fromDb.get(i).isTransmitted());
                         for (int i=0; i<fromDb.size(); i++) {
                             ChatMessage cm = fromDb.get(i);
                             if (!messages.contains(cm)) {
                                 messages.add(cm);
-                                writeToLocal(cm);
+                            } else if (cm.isRead()) {
+                                int oldMsgIdx = messages.indexOf(cm);
+                                ChatMessage oldMsg = messages.get(oldMsgIdx);
+                                oldMsg.setRead(true);
+                                messages.set(oldMsgIdx, oldMsg);
                             }
                             if (!cm.getSender().equals(currentUser.getUser().getUsername()))
-                                fromDb.get(i).setTransmitted(true);
+                                fromDb.get(i).setRead(true);
+                            writeToLocal(cm);
                         }
                         messageListAdapter.notifyDataSetChanged();
                         messageList.scrollToPosition(messages.size() - 1);
@@ -269,25 +286,30 @@ public class ChatActivity extends AppCompatActivity {
     private void sendMessage(final String message) {
         long createDate = Timestamp.now().getSeconds();
         final ChatMessage chatMessage = new ChatMessage(currentUser.getUser().getUsername(), message, createDate);
+        messages.add(chatMessage);
+        messageListAdapter.notifyDataSetChanged();
+        messageList.scrollToPosition(messages.size() - 1);
         db.collection("chat").document(chatName).update(
                 "messages",
                 FieldValue.arrayUnion(chatMessage),
                 "lastMessage",
                 message,
                 "lastMessageDate",
-                createDate
-        )
-                .addOnFailureListener(new OnFailureListener() {
+                createDate)
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
-                    public void onFailure(@NonNull Exception e) {
-                       Toast.makeText(ChatActivity.this, "Error while sending message!",
-                               Toast.LENGTH_LONG).show();
+                    public void onComplete(@NonNull Task<Void> task) {
+                        if (task.isSuccessful()) {
+                            messages.get(messages.indexOf(chatMessage)).setTransmitted(true);
+                            messageListAdapter.notifyDataSetChanged();
+                            chatMessage.setTransmitted(true);
+                            writeToLocal(chatMessage);
+                        } else {
+                            Toast.makeText(ChatActivity.this, "Error while sending a message",
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
-        messages.add(chatMessage);
-        messageListAdapter.notifyDataSetChanged();
-        messageList.scrollToPosition(messages.size() - 1);
-        writeToLocal(chatMessage);
     }
 
     private void getMessages() {
@@ -322,7 +344,7 @@ public class ChatActivity extends AppCompatActivity {
                 writeToLocal(cm);
             }
             if (!cm.getSender().equals(currentUser.getUser().getUsername()))
-                newMessages.get(i).setTransmitted(true);
+                newMessages.get(i).setRead(true);
         }
         messageListAdapter.notifyDataSetChanged();
         messageList.scrollToPosition(messages.size() - 1);
@@ -334,20 +356,27 @@ public class ChatActivity extends AppCompatActivity {
             }
         }*/
 
-        db.collection("chat").document(chatName).update("messages", newMessages);
+        db.collection("chat").document(chatName).update("messages", newMessages)
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        listen();
+                    }
+                });
     }
 
     private void writeToLocal(ChatMessage chatMessage) {
         String query = "REPLACE INTO " + Constants.TABLE_MESSAGES + "(chatName, " +
-                "sender, message, sendDate) " +
-                "VALUES (?, ?, ?, ?)";
+                "sender, message, sendDate, transmitted, read) " +
+                "VALUES (?, ?, ?, ?, " + (chatMessage.isTransmitted() ? 1 : 0) + ", " +
+                (chatMessage.isRead() ? 1 : 0) + ")";
 
         SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
-         sqLiteStatement.bindString(1, chatName);
-         sqLiteStatement.bindString(2, chatMessage.getSender());
-         sqLiteStatement.bindString(3, chatMessage.getMessage());
-         sqLiteStatement.bindLong(4, chatMessage.getSendDate());
-         sqLiteStatement.execute();
+        sqLiteStatement.bindString(1, chatName);
+        sqLiteStatement.bindString(2, chatMessage.getSender());
+        sqLiteStatement.bindString(3, chatMessage.getMessage());
+        sqLiteStatement.bindLong(4, chatMessage.getSendDate());
+        sqLiteStatement.execute();
     }
 
     private void updateHeader() {
@@ -397,7 +426,7 @@ public class ChatActivity extends AppCompatActivity {
                     ArrayList<ChatMessage> cmList = chat.getMessages();
                     for (Iterator<ChatMessage> iterator = cmList.iterator(); iterator.hasNext();) {
                         ChatMessage cm = iterator.next();
-                        if (cm.isTransmitted() && !cm.getSender().equals(currentUsername))
+                        if (cm.isRead() && !cm.getSender().equals(currentUsername))
                             iterator.remove();
                     }
                     db.collection("chat").document(chatName).update("messages", cmList);

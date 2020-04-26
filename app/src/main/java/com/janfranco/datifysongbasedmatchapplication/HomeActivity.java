@@ -2,6 +2,7 @@ package com.janfranco.datifysongbasedmatchapplication;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -11,6 +12,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -36,6 +38,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.Random;
 
@@ -51,6 +54,7 @@ public class HomeActivity extends AppCompatActivity {
 
     // ToDo: If a new chat is opened -> its color is green or sth
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,7 +92,8 @@ public class HomeActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         currentUser = CurrentUser.getInstance();
 
-        chatListRecyclerAdapter = new ChatListRecyclerAdapter(chats,
+        chatListRecyclerAdapter = new ChatListRecyclerAdapter(getApplicationContext(),
+                chats,
                 currentUser.getUser().getUsername());
         recyclerView.setAdapter(chatListRecyclerAdapter);
 
@@ -136,14 +141,17 @@ public class HomeActivity extends AppCompatActivity {
         listenChatMessages();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onStart() {
         super.onStart();
 
         listenChatMessages();
+        sortList(chats);
         chatListRecyclerAdapter.notifyDataSetChanged();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     private ArrayList<String> getFromLocalDb() {
         ArrayList<String> newMatches = new ArrayList<>();
         chats.clear();
@@ -184,6 +192,7 @@ public class HomeActivity extends AppCompatActivity {
             ));
         }
 
+        sortList(chats);
         chatListRecyclerAdapter.notifyDataSetChanged();
         cursor.close();
 
@@ -361,27 +370,33 @@ public class HomeActivity extends AppCompatActivity {
 
         ArrayList<String> chatNames = generateChatNames(matches);
 
-        db.collection("chat").whereIn(FieldPath.documentId(), chatNames).get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+        db.collection("chat")
+                .whereIn(FieldPath.documentId(), chatNames)
+                .get()
+                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                    @RequiresApi(api = Build.VERSION_CODES.N)
                     @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            for (QueryDocumentSnapshot document : Objects.requireNonNull(task.getResult())) {
-                                Chat chat = document.toObject(Chat.class);
-                                for (int i=0; i<chats.size(); i++)
-                                    if (chats.get(i).getChatName().equals(chat.getChatName())) {
-                                        chats.remove(i);
-                                        break;
-                                    }
-                                chats.add(chat);
-                            }
-                            chatListRecyclerAdapter.notifyDataSetChanged();
-                            listenChatMessages();
-                            writeToLocalDb();
-                        } else {
-                            Toast.makeText(HomeActivity.this, "Error while loading chats!",
-                                    Toast.LENGTH_LONG).show();
+                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                            Chat chat = document.toObject(Chat.class);
+                            for (int i=0; i<chats.size(); i++)
+                                if (chats.get(i).getChatName().equals(chat.getChatName())) {
+                                    chats.remove(i);
+                                    break;
+                                }
+                            chats.add(chat);
                         }
+                        sortList(chats);
+                        chatListRecyclerAdapter.notifyDataSetChanged();
+                        listenChatMessages();
+                        writeToLocalDb();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(HomeActivity.this, e.getLocalizedMessage(),
+                                Toast.LENGTH_LONG).show();
                     }
                 });
     }
@@ -467,6 +482,7 @@ public class HomeActivity extends AppCompatActivity {
         registrationChatMsg = db.collection("chat")
                 .whereIn(FieldPath.documentId(), chatNames)
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @RequiresApi(api = Build.VERSION_CODES.N)
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
                         if (e != null) {
@@ -486,6 +502,7 @@ public class HomeActivity extends AppCompatActivity {
                                     }
                                 }
                                 chats.add(updatedChat);
+                                sortList(chats);
                                 chatListRecyclerAdapter.notifyDataSetChanged();
                                 writeToLocalDb();
                             }
@@ -509,6 +526,20 @@ public class HomeActivity extends AppCompatActivity {
         }
 
         return -1;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    private void sortList(ArrayList<Chat> chats) {
+        chats.sort(new Comparator<Chat>() {
+            @Override
+            public int compare(Chat o1, Chat o2) {
+                if (o1.getLastMessageDate() > o2.getLastMessageDate())
+                    return -1;
+                else if (o1.getLastMessageDate() < o2.getLastMessageDate())
+                    return 1;
+                return 0;
+            }
+        });
     }
 
 }

@@ -1,6 +1,8 @@
 package com.janfranco.datifysongbasedmatchapplication;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.graphics.Typeface;
 import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,7 +21,12 @@ public class ChatListRecyclerAdapter extends RecyclerView.Adapter<ChatListRecycl
     private ArrayList<Chat> chats;
     private String currentUsername;
 
-    ChatListRecyclerAdapter(ArrayList<Chat> chats, String currentUsername) {
+    private static Typeface metropolisLight;
+    private static Typeface metropolisExtraLightItalic;
+
+    ChatListRecyclerAdapter(Context context, ArrayList<Chat> chats, String currentUsername) {
+        metropolisLight = Typeface.createFromAsset(context.getAssets(), "fonts/Metropolis-Light.otf");
+        metropolisExtraLightItalic = Typeface.createFromAsset(context.getAssets(), "fonts/Metropolis-ExtraLightItalic.otf");
         this.chats = chats;
         this.currentUsername = currentUsername;
     }
@@ -69,6 +76,10 @@ public class ChatListRecyclerAdapter extends RecyclerView.Adapter<ChatListRecycl
             username = itemView.findViewById(R.id.chatListUsername);
             message = itemView.findViewById(R.id.chatListMessage);
             date = itemView.findViewById(R.id.chatListDate);
+
+            message.setTypeface(metropolisLight);
+            username.setTypeface(metropolisLight);
+            date.setTypeface(metropolisExtraLightItalic);
         }
     }
 

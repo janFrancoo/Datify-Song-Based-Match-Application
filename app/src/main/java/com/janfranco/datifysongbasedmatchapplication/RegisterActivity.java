@@ -60,8 +60,10 @@ public class RegisterActivity extends AppCompatActivity {
         registerBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (registerBtn.isEnabled())
+                if (registerBtn.isEnabled()) {
                     checkUsername();
+                    loadPopUp();
+                }
             }
         });
 
@@ -181,11 +183,13 @@ public class RegisterActivity extends AppCompatActivity {
                             if (Objects.requireNonNull(task.getResult()).isEmpty()) {
                                 register(username);
                             } else {
+                                loadPopUp.dismiss();
                                 Toast.makeText(RegisterActivity.this,
                                         "This username is used, please select another username.",
                                         Toast.LENGTH_LONG).show();
                             }
                         } else {
+                            loadPopUp.dismiss();
                             Toast.makeText(RegisterActivity.this,
                                     "Error while registering, please, try again!",
                                     Toast.LENGTH_LONG).show();
@@ -195,7 +199,6 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void register(final String username) {
-        loadPopUp();
         final String eMail = eMailInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
         Random random = new Random();
@@ -263,7 +266,7 @@ public class RegisterActivity extends AppCompatActivity {
         Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
         TextView popUpLoadLabel = popupView.findViewById(R.id.popUpLoadLabel);
         popUpLoadLabel.setTypeface(metropolisLight);
-        popUpLoadLabel.setText("Authentication...");
+        popUpLoadLabel.setText("Authentication... (This may take a while)");
         ImageView spinner = popupView.findViewById(R.id.popUpLoadSpinner);
         spinner.setBackgroundResource(R.drawable.load_animation);
         AnimationDrawable spinnerAnim = (AnimationDrawable) spinner.getBackground();

@@ -1,11 +1,13 @@
 package com.janfranco.datifysongbasedmatchapplication;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.graphics.Typeface;
 import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.RelativeLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -17,7 +19,14 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
     private ArrayList<ChatMessage> messages;
     private String currentUsername;
 
-    MessageListRecyclerAdapter(String currentUsername, ArrayList<ChatMessage> messages) {
+    private static Typeface metropolisLight;
+    private static Typeface metropolisExtraLightItalic;
+    // private static Typeface metropolisExtraBold;
+
+    MessageListRecyclerAdapter(Context context, String currentUsername, ArrayList<ChatMessage> messages) {
+        metropolisLight = Typeface.createFromAsset(context.getAssets(), "fonts/Metropolis-Light.otf");
+        metropolisExtraLightItalic = Typeface.createFromAsset(context.getAssets(), "fonts/Metropolis-ExtraLightItalic.otf");
+        // metropolisExtraBold = Typeface.createFromAsset(context.getAssets(), "fonts/Metropolis-ExtraBold.otf");
         this.currentUsername = currentUsername;
         this.messages = messages;
     }
@@ -52,6 +61,10 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
                 Constants.DATE_MESSAGE,
                 message.getSendDate() * 1000L
         ).toString());
+        if (holder.messageCheck != null && message.isRead())
+            holder.messageCheck.setImageResource(R.drawable.doubletick);
+        else if (holder.messageCheck != null && message.isTransmitted())
+            holder.messageCheck.setImageResource(R.drawable.tick);
     }
 
     @Override
@@ -61,15 +74,17 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
 
     static class PostHolder extends RecyclerView.ViewHolder {
 
-        RelativeLayout messageWrapper;
+        ImageView messageCheck;
         TextView message, date;
 
         PostHolder(@NonNull View itemView) {
             super(itemView);
 
-            messageWrapper = itemView.findViewById(R.id.messageListLayout);
             message = itemView.findViewById(R.id.messageListMessage);
             date = itemView.findViewById(R.id.messageListDate);
+            messageCheck = itemView.findViewById(R.id.messageCheck);
+            message.setTypeface(metropolisLight);
+            date.setTypeface(metropolisExtraLightItalic);
         }
     }
 

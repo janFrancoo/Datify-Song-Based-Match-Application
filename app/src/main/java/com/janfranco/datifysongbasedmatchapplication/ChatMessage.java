@@ -5,7 +5,7 @@ import androidx.annotation.Nullable;
 class ChatMessage {
 
     private String sender, message;
-    private boolean transmitted;
+    private boolean transmitted, read;
     private long sendDate;
 
     ChatMessage() { }
@@ -13,6 +13,14 @@ class ChatMessage {
         this.message = message;
         this.sender = sender;
         this.transmitted = false;
+        this.read = false;
+        this.sendDate = sendDate;
+    }
+    ChatMessage(String sender, String message, long sendDate, boolean transmitted, boolean read) {
+        this.message = message;
+        this.sender = sender;
+        this.transmitted = transmitted;
+        this.read = read;
         this.sendDate = sendDate;
     }
 
@@ -22,6 +30,14 @@ class ChatMessage {
         ChatMessage cm = (ChatMessage) obj;
         assert cm != null;
         return this.sendDate == cm.sendDate;
+    }
+
+    public boolean isRead() {
+        return read;
+    }
+
+    public void setRead(boolean read) {
+        this.read = read;
     }
 
     public String getSender() {
