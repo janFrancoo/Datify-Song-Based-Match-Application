@@ -4,14 +4,20 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -36,6 +42,8 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -49,10 +57,8 @@ public class HomeActivity extends AppCompatActivity {
     private ArrayList<Chat> chats;
     private ArrayList<String> matches;
     private ChatListRecyclerAdapter chatListRecyclerAdapter;
-    private ListenerRegistration registration, registrationChatMsg;
+    private ListenerRegistration registrationChatMsg;
     private SQLiteDatabase localDb;
-
-    // ToDo: If a new chat is opened -> its color is green or sth
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -136,7 +142,7 @@ public class HomeActivity extends AppCompatActivity {
         else
             newMatches.removeAll(matches);
 
-        getFromCloud(newMatches);
+        getFromCloud(newMatches, false);
         listen();
         listenChatMessages();
     }
@@ -149,6 +155,43 @@ public class HomeActivity extends AppCompatActivity {
         listenChatMessages();
         sortList(chats);
         chatListRecyclerAdapter.notifyDataSetChanged();
+    }
+
+    void showNotification(String title, String message, String avatarUrl) {
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("NC",
+                    "NEW_CHAT",
+                    NotificationManager.IMPORTANCE_DEFAULT);
+            channel.setDescription("New chat is opened");
+            assert mNotificationManager != null;
+            mNotificationManager.createNotificationChannel(channel);
+        }
+        final Bitmap[] avatar = new Bitmap[1];
+        Picasso.get().load(avatarUrl).into(new Target() {
+            @Override
+            public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                avatar[0] = bitmap;
+            }
+
+            @Override
+            public void onBitmapFailed(Exception e, Drawable errorDrawable) { }
+
+            @Override
+            public void onPrepareLoad(Drawable placeHolderDrawable) {}
+        });
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext(), "NC")
+                .setSmallIcon(R.drawable.firebase) // notification icon
+                .setContentTitle(title) // title for notification
+                .setContentText(message)// message for notification
+                .setLargeIcon(avatar[0]) // avatar (big pic) for notification
+                .setAutoCancel(true); // clear notification after click
+        Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
+        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        mBuilder.setContentIntent(pi);
+        assert mNotificationManager != null;
+        mNotificationManager.notify(0, mBuilder.build());
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -364,7 +407,7 @@ public class HomeActivity extends AppCompatActivity {
         return chatNames;
     }
 
-    private void getFromCloud(ArrayList<String> matches) {
+    private void getFromCloud(ArrayList<String> matches, final boolean notify) {
         if (matches == null || matches.isEmpty())
             return;
 
@@ -377,14 +420,23 @@ public class HomeActivity extends AppCompatActivity {
                     @RequiresApi(api = Build.VERSION_CODES.N)
                     @Override
                     public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                        boolean sureNotify = true;
                         for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                             Chat chat = document.toObject(Chat.class);
-                            for (int i=0; i<chats.size(); i++)
+                            for (int i=0; i<chats.size(); i++) {
                                 if (chats.get(i).getChatName().equals(chat.getChatName())) {
                                     chats.remove(i);
+                                    sureNotify = false;
                                     break;
                                 }
+                            }
                             chats.add(chat);
+                            if (notify && sureNotify) {
+                                if (chat.getUsername1().equals(currentUser.getUser().getUsername()))
+                                    showNotification("New chat!", chat.getUsername2(), chat.getAvatar2());
+                                else
+                                    showNotification("New Chat", chat.getUsername1(), chat.getAvatar1());
+                            }
                         }
                         sortList(chats);
                         chatListRecyclerAdapter.notifyDataSetChanged();
@@ -404,25 +456,25 @@ public class HomeActivity extends AppCompatActivity {
     private void listen() {
         final DocumentReference ref = db.collection("userDetail")
                 .document(currentUser.getUser().geteMail());
-        registration = ref.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+        ref.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot snapshot, @Nullable FirebaseFirestoreException e) {
-                if (e != null) {
-                    Toast.makeText(HomeActivity.this, "Real time listening error!",
-                            Toast.LENGTH_LONG).show();
-                    return;
-                }
+            if (e != null) {
+                Toast.makeText(HomeActivity.this, "Real time listening error!",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
 
-                if (snapshot != null && snapshot.exists() && snapshot.getData() != null) {
-                    User updatedUser = snapshot.toObject(User.class);
-                    if (updatedUser != null) {
-                        currentUser.setUser(updatedUser);
-                        ArrayList<String> newMatchesSafe = updatedUser.getMatches();
-                        ArrayList<String> newMatches = new ArrayList<>(newMatchesSafe);
-                        newMatches.removeAll(matches);
-                        getFromCloud(newMatches);
-                    }
+            if (snapshot != null && snapshot.exists() && snapshot.getData() != null) {
+                User updatedUser = snapshot.toObject(User.class);
+                if (updatedUser != null) {
+                    currentUser.setUser(updatedUser);
+                    ArrayList<String> newMatchesSafe = updatedUser.getMatches();
+                    ArrayList<String> newMatches = new ArrayList<>(newMatchesSafe);
+                    newMatches.removeAll(matches);
+                    getFromCloud(newMatches, true);
                 }
+            }
             }
         });
     }
@@ -431,13 +483,13 @@ public class HomeActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        if (registration != null)
+        /*if (registration != null)
             registration.remove();
 
         if (registrationChatMsg != null)
-            registrationChatMsg.remove();
+            registrationChatMsg.remove();*/
 
-        localDb.close();
+        // localDb.close();
     }
 
     private void writeToLocalDb() {
@@ -502,6 +554,14 @@ public class HomeActivity extends AppCompatActivity {
                                     }
                                 }
                                 chats.add(updatedChat);
+                                if (!currentUser.getCurrentChat().equals(updatedChat.getChatName())) {
+                                    if (updatedChat.getUsername1().equals(currentUser.getUser().getUsername()))
+                                        showNotification(updatedChat.getUsername2(),
+                                                updatedChat.getLastMessage(), updatedChat.getAvatar2());
+                                    else
+                                        showNotification(updatedChat.getUsername1(),
+                                                updatedChat.getLastMessage(), updatedChat.getAvatar1());
+                                }
                                 sortList(chats);
                                 chatListRecyclerAdapter.notifyDataSetChanged();
                                 writeToLocalDb();

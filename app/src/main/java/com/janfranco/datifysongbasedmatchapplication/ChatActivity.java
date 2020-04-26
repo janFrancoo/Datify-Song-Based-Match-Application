@@ -14,7 +14,6 @@ import android.database.sqlite.SQLiteStatement;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -39,7 +38,6 @@ import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
-import com.google.firebase.firestore.ListenerRegistration;
 import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
@@ -50,7 +48,6 @@ public class ChatActivity extends AppCompatActivity {
 
     private String chatName, avatarUrl, chatUsername;
     private FirebaseFirestore db;
-    private ListenerRegistration registration;
     private Button sendMessageBtn;
     private EditText messageInput;
     private CurrentUser currentUser;
@@ -61,7 +58,7 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView headerAvatar;
     private SQLiteDatabase localDb;
 
-    // ToDo: Add viewed or transmitted into messages using transmitted field!
+    // ToDo: Send pics
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,6 +120,7 @@ public class ChatActivity extends AppCompatActivity {
         messages = new ArrayList<>();
         db = FirebaseFirestore.getInstance();
         currentUser = CurrentUser.getInstance();
+        currentUser.setCurrentChat(chatName);
 
         messageListAdapter = new MessageListRecyclerAdapter(getApplicationContext(), currentUser.getUser().getUsername(), messages);
         messageList.setAdapter(messageListAdapter);
@@ -223,18 +221,48 @@ public class ChatActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        if (registration != null)
-            registration.remove();
+        /*if (registration != null)
+            registration.remove();*/
 
+        // localDb.close();
+
+        currentUser.setCurrentChat("");
         removeTransmittedMessagesFromCloud();
     }
+
+    /* void showNotification(String title, String message, Drawable avatar) {
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("NM",
+                    "NEW_MESSAGE",
+                    NotificationManager.IMPORTANCE_DEFAULT);
+            channel.setDescription("New message notification");
+            assert mNotificationManager != null;
+            mNotificationManager.createNotificationChannel(channel);
+        }
+        BitmapDrawable drawable = (BitmapDrawable) avatar;
+        Bitmap bitmap = drawable.getBitmap();
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext(), "NM")
+                .setSmallIcon(R.drawable.firebase) // notification icon
+                .setContentTitle(title) // title for notification
+                .setContentText(message)// message for notification
+                .setLargeIcon(bitmap) // avatar (large icon) for notification
+                .setAutoCancel(true); // clear notification after click
+        Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
+        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        mBuilder.setContentIntent(pi);
+        assert mNotificationManager != null;
+        mNotificationManager.notify(0, mBuilder.build());
+    }
+    */
 
     private void listen() {
         if (chatName == null)
             return;
 
         final DocumentReference ref = db.collection("chat").document(chatName);
-        registration = ref.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+        ref.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot snapshot, @Nullable FirebaseFirestoreException e) {
                 if (e != null) {
@@ -247,12 +275,15 @@ public class ChatActivity extends AppCompatActivity {
                     Chat updatedChat = snapshot.toObject(Chat.class);
                     if (updatedChat != null) {
                         ArrayList<ChatMessage> fromDb = updatedChat.getMessages();
-                        for (int i=0; i<fromDb.size(); i++)
-                            Log.d("HMMM", fromDb.get(i).getMessage() + " " + fromDb.get(i).isTransmitted());
                         for (int i=0; i<fromDb.size(); i++) {
                             ChatMessage cm = fromDb.get(i);
                             if (!messages.contains(cm)) {
                                 messages.add(cm);
+                                /* if (!cm.getSender().equals(currentUser.getUser().getUsername()))
+                                    showNotification(
+                                            cm.getSender(),
+                                            cm.getMessage(),
+                                            headerAvatar.getDrawable()); */
                             } else if (cm.isRead()) {
                                 int oldMsgIdx = messages.indexOf(cm);
                                 ChatMessage oldMsg = messages.get(oldMsgIdx);
