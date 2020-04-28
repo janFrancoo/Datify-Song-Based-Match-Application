@@ -3,15 +3,22 @@ package com.janfranco.datifysongbasedmatchapplication;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
@@ -38,16 +45,22 @@ import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.UUID;
 
 public class ChatActivity extends AppCompatActivity {
 
     private String chatName, avatarUrl, chatUsername;
     private FirebaseFirestore db;
+    private FirebaseStorage fStorage;
+    private Uri imgData;
     private Button sendMessageBtn;
     private EditText messageInput;
     private CurrentUser currentUser;
@@ -58,7 +71,7 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView headerAvatar;
     private SQLiteDatabase localDb;
 
-    // ToDo: Send pics
+    // ToDo: Fix transmit, read, notifications (probably caused by localDb)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,7 +119,8 @@ public class ChatActivity extends AppCompatActivity {
         headerAvatar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                createPopUp();
+                if (!avatarUrl.matches("default"))
+                    createPopUp(avatarUrl);
             }
         });
         updateHeader();
@@ -115,10 +129,11 @@ public class ChatActivity extends AppCompatActivity {
         localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
                 Constants.TABLE_MESSAGES +
                 "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, " +
-                "transmitted INT, read INT, PRIMARY KEY (message, sendDate))");
+                "transmitted INT, read INT, hasImage INT, imgUrl VARCHAR, PRIMARY KEY (message, sendDate))");
 
         messages = new ArrayList<>();
         db = FirebaseFirestore.getInstance();
+        fStorage = FirebaseStorage.getInstance();
         currentUser = CurrentUser.getInstance();
         currentUser.setCurrentChat(chatName);
 
@@ -150,7 +165,10 @@ public class ChatActivity extends AppCompatActivity {
                         new RecyclerItemClickListener.OnItemClickListener() {
 
                             @Override
-                            public void onItemClick(View view, int position) { }
+                            public void onItemClick(View view, int position) {
+                                if (messages.get(position).isHasImage())
+                                    createPopUp(messages.get(position).getImgUrl());
+                            }
 
                             @Override
                             public void onLongItemClick(View view, int position) {
@@ -170,6 +188,15 @@ public class ChatActivity extends AppCompatActivity {
                 }
             }
         });
+
+        Button attachmentBtn = findViewById(R.id.sendAttachmentBtn);
+        attachmentBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendPic();
+            }
+        });
+
     }
 
     @Override
@@ -192,21 +219,34 @@ public class ChatActivity extends AppCompatActivity {
         int sendDate = cursor.getColumnIndex("sendDate");
         int transmitted = cursor.getColumnIndex("transmitted");
         int read = cursor.getColumnIndex("read");
+        int hasImage = cursor.getColumnIndex("hasImage");
+        int imageUrl = cursor.getColumnIndex("imgUrl");
 
         while (cursor.moveToNext()) {
-            boolean setTransmitted, setRead;
+            boolean setTransmitted, setRead, setHasImage;
 
             setTransmitted = cursor.getInt(transmitted) == 1;
             setRead = cursor.getInt(read) == 1;
+            setHasImage = cursor.getInt(hasImage) == 1;
 
             if (chatName.equals(cursor.getString(cName))) {
-                ChatMessage cm = new ChatMessage(
-                        cursor.getString(sender),
-                        cursor.getString(message),
-                        cursor.getLong(sendDate),
-                        setTransmitted,
-                        setRead
-                );
+                ChatMessage cm;
+                if (setHasImage) {
+                    cm = new ChatMessage(
+                            cursor.getString(sender),
+                            cursor.getString(message),
+                            cursor.getString(imageUrl),
+                            cursor.getLong(sendDate)
+                    );
+                } else {
+                    cm = new ChatMessage(
+                            cursor.getString(sender),
+                            cursor.getString(message),
+                            cursor.getLong(sendDate),
+                            setTransmitted,
+                            setRead
+                    );
+                }
 
                 messages.add(cm);
             }
@@ -398,15 +438,16 @@ public class ChatActivity extends AppCompatActivity {
 
     private void writeToLocal(ChatMessage chatMessage) {
         String query = "REPLACE INTO " + Constants.TABLE_MESSAGES + "(chatName, " +
-                "sender, message, sendDate, transmitted, read) " +
+                "sender, message, sendDate, transmitted, read, hasImage, imgUrl) " +
                 "VALUES (?, ?, ?, ?, " + (chatMessage.isTransmitted() ? 1 : 0) + ", " +
-                (chatMessage.isRead() ? 1 : 0) + ")";
+                (chatMessage.isRead() ? 1 : 0) + ", " + (chatMessage.isHasImage() ? 1 : 0) + ", ?)";
 
         SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
         sqLiteStatement.bindString(1, chatName);
         sqLiteStatement.bindString(2, chatMessage.getSender());
         sqLiteStatement.bindString(3, chatMessage.getMessage());
         sqLiteStatement.bindLong(4, chatMessage.getSendDate());
+        sqLiteStatement.bindString(5, chatMessage.getImgUrl());
         sqLiteStatement.execute();
     }
 
@@ -416,7 +457,7 @@ public class ChatActivity extends AppCompatActivity {
             Picasso.get().load(avatarUrl).into(headerAvatar);
     }
 
-    private void createPopUp() {
+    private void createPopUp(String url) {
         LayoutInflater inflater = (LayoutInflater)
                 getSystemService(LAYOUT_INFLATER_SERVICE);
         assert inflater != null;
@@ -424,8 +465,7 @@ public class ChatActivity extends AppCompatActivity {
                 null);
 
         ImageView avatar = popupView.findViewById(R.id.popUpAvatar);
-        if (!avatarUrl.matches("default"))
-            Picasso.get().load(avatarUrl).into(avatar);
+        Picasso.get().load(url).into(avatar);
 
         int width = LinearLayout.LayoutParams.WRAP_CONTENT;
         int height = LinearLayout.LayoutParams.WRAP_CONTENT;
@@ -466,4 +506,96 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
+    private void sendPic() {
+        if(ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+        } else {
+            Intent toGallery = new Intent(Intent.ACTION_PICK,
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            startActivityForResult(toGallery, 2);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if(requestCode == 1) {
+            if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Intent toGallery = new Intent(Intent.ACTION_PICK,
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                startActivityForResult(toGallery, 2);
+            }
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if(requestCode == 2 && resultCode == RESULT_OK && data != null) {
+            imgData = data.getData();
+            uploadImage();
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private void uploadImage() {
+        if (imgData != null) {
+            UUID uuid = UUID.randomUUID();
+            final String imgName = "chatMessages/" + uuid + ".jpg";
+            fStorage.getReference().child(imgName).putFile(imgData).addOnSuccessListener(
+                    new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                            StorageReference newRef = FirebaseStorage.getInstance().getReference(imgName);
+                            newRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                @Override
+                                public void onSuccess(Uri uri) {
+                                    String downloadUrl = uri.toString();
+                                    long createDate = Timestamp.now().getSeconds();
+                                    String message = messageInput.getText().toString();
+                                    if (message.equals(""))
+                                        message = "A pretty new image...";
+
+                                    final ChatMessage cm = new ChatMessage(
+                                            currentUser.getUser().getUsername(),
+                                            message,
+                                            downloadUrl,
+                                            createDate
+                                    );
+
+                                    messages.add(cm);
+                                    messageListAdapter.notifyDataSetChanged();
+                                    messageList.scrollToPosition(messages.size() - 1);
+                                    db.collection("chat").document(chatName).update(
+                                            "messages",
+                                            FieldValue.arrayUnion(cm),
+                                            "lastMessage",
+                                            message,
+                                            "lastMessageDate",
+                                            createDate
+                                    ).addOnCompleteListener(new OnCompleteListener<Void>() {
+                                        @Override
+                                        public void onComplete(@NonNull Task<Void> task) {
+                                            if (task.isSuccessful()) {
+                                                messages.get(messages.indexOf(cm)).setTransmitted(true);
+                                                messageListAdapter.notifyDataSetChanged();
+                                                cm.setTransmitted(true);
+                                                writeToLocal(cm);
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Toast.makeText(ChatActivity.this, "Image sending error!",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
 }

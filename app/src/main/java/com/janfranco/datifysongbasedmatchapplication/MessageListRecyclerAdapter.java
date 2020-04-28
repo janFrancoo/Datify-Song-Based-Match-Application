@@ -12,6 +12,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.squareup.picasso.Picasso;
+
 import java.util.ArrayList;
 
 public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageListRecyclerAdapter.PostHolder> {
@@ -61,6 +63,16 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
                 Constants.DATE_MESSAGE,
                 message.getSendDate() * 1000L
         ).toString());
+
+        if (message.isHasImage()) {
+            Picasso.get().load(message.getImgUrl()).into(holder.image);
+            holder.image.getLayoutParams().height = 500;
+            holder.image.getLayoutParams().width = 500;
+        } else {
+            holder.image.getLayoutParams().width = 0;
+            holder.image.getLayoutParams().height = 0;
+        }
+
         if (holder.messageCheck != null && message.isRead())
             holder.messageCheck.setImageResource(R.drawable.doubletick);
         else if (holder.messageCheck != null && message.isTransmitted())
@@ -74,13 +86,14 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
 
     static class PostHolder extends RecyclerView.ViewHolder {
 
-        ImageView messageCheck;
+        ImageView image, messageCheck;
         TextView message, date;
 
         PostHolder(@NonNull View itemView) {
             super(itemView);
 
             message = itemView.findViewById(R.id.messageListMessage);
+            image = itemView.findViewById(R.id.messageListImage);
             date = itemView.findViewById(R.id.messageListDate);
             messageCheck = itemView.findViewById(R.id.messageCheck);
             message.setTypeface(metropolisLight);

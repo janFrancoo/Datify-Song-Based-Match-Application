@@ -51,18 +51,27 @@
 
     <EditText
         android:id="@+id/messageInput"
-        android:layout_width="323dp"
+        android:layout_width="0dp"
         android:layout_height="45dp"
         android:ems="10"
         android:inputType="textPersonName"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/sendMessageBtn"/>
 
     <Button
         android:id="@+id/sendMessageBtn"
         android:layout_width="wrap_content"
         android:layout_height="45dp"
         android:text="Send"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/sendAttachmentBtn" />
+
+    <Button
+        android:id="@+id/sendAttachmentBtn"
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:background="@android:drawable/ic_menu_add"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

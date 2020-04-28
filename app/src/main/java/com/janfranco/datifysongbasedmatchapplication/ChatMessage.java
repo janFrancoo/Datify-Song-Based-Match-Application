@@ -4,8 +4,8 @@ import androidx.annotation.Nullable;
 
 class ChatMessage {
 
-    private String sender, message;
-    private boolean transmitted, read;
+    private String sender, message, imgUrl;
+    private boolean transmitted, read, hasImage;
     private long sendDate;
 
     ChatMessage() { }
@@ -15,6 +15,8 @@ class ChatMessage {
         this.transmitted = false;
         this.read = false;
         this.sendDate = sendDate;
+        this.hasImage = false;
+        this.imgUrl = "";
     }
     ChatMessage(String sender, String message, long sendDate, boolean transmitted, boolean read) {
         this.message = message;
@@ -22,6 +24,17 @@ class ChatMessage {
         this.transmitted = transmitted;
         this.read = read;
         this.sendDate = sendDate;
+        this.hasImage = false;
+        this.imgUrl = "";
+    }
+    ChatMessage(String sender, String message, String imgUrl, long sendDate) {
+        this.message = message;
+        this.sender = sender;
+        this.transmitted = false;
+        this.read = false;
+        this.sendDate = sendDate;
+        this.hasImage = true;
+        this.imgUrl = imgUrl;
     }
 
     // I assume there will be no message at the same timestamp
@@ -71,4 +84,21 @@ class ChatMessage {
     public void setSendDate(long sendDate) {
         this.sendDate = sendDate;
     }
+
+    public boolean isHasImage() {
+        return hasImage;
+    }
+
+    public void setHasImage(boolean hasImage) {
+        this.hasImage = hasImage;
+    }
+
+    public String getImgUrl() {
+        return imgUrl;
+    }
+
+    public void setImgUrl(String imgUrl) {
+        this.imgUrl = imgUrl;
+    }
+
 }
