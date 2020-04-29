@@ -39,19 +39,22 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
+import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.WriteBatch;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -70,14 +73,58 @@ public class ChatActivity extends AppCompatActivity {
     private TextView headerUsername;
     private ImageView headerAvatar;
     private SQLiteDatabase localDb;
+    private ListenerRegistration registration;
 
-    // ToDo: Fix transmit, read, notifications (probably caused by localDb)
+    //ToDo: SendMessage function -> Update chat lastMessage & lastMessageDate
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
+        localDb = openOrCreateDatabase(Constants.DB_NAME, Context.MODE_PRIVATE, null);
+        localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
+                Constants.TABLE_MESSAGES +
+                "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, " +
+                "read INT, imgUrl VARCHAR, PRIMARY KEY (message, sendDate))");
+
+        initialize();
+
+        db = FirebaseFirestore.getInstance();
+        fStorage = FirebaseStorage.getInstance();
+        currentUser = CurrentUser.getInstance();
+        currentUser.setCurrentChat(chatName);
+
+        messageListAdapter = new MessageListRecyclerAdapter(getApplicationContext(),
+                currentUser.getUser().getUsername(), messages);
+        messageList.setAdapter(messageListAdapter);
+        getMessagesFromLocal();
+        // getMessages();
+        listen();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        messageListAdapter.notifyDataSetChanged();
+        messageList.scrollToPosition(messages.size() - 1);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        if (registration != null)
+            registration.remove();
+
+        // localDb.close();
+
+        currentUser.setCurrentChat("");
+        removeRedundantMessagesFromCloud();
+    }
+
+    private void initialize() {
         chatName = getIntent().getStringExtra("chatName");
         messageInput = findViewById(R.id.messageInput);
         sendMessageBtn = findViewById(R.id.sendMessageBtn);
@@ -85,6 +132,8 @@ public class ChatActivity extends AppCompatActivity {
 
         avatarUrl = getIntent().getStringExtra("chatAvatar");
         chatUsername = getIntent().getStringExtra("chatUsername");
+
+        messages = new ArrayList<>();
 
         TextWatcher textWatcher = new TextWatcher() {
             @Override
@@ -125,23 +174,6 @@ public class ChatActivity extends AppCompatActivity {
         });
         updateHeader();
 
-        localDb = openOrCreateDatabase(Constants.DB_NAME, Context.MODE_PRIVATE, null);
-        localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
-                Constants.TABLE_MESSAGES +
-                "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, " +
-                "transmitted INT, read INT, hasImage INT, imgUrl VARCHAR, PRIMARY KEY (message, sendDate))");
-
-        messages = new ArrayList<>();
-        db = FirebaseFirestore.getInstance();
-        fStorage = FirebaseStorage.getInstance();
-        currentUser = CurrentUser.getInstance();
-        currentUser.setCurrentChat(chatName);
-
-        messageListAdapter = new MessageListRecyclerAdapter(getApplicationContext(), currentUser.getUser().getUsername(), messages);
-        messageList.setAdapter(messageListAdapter);
-        getMessagesFromLocal();
-        getMessages();
-
         sendMessageBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -165,10 +197,7 @@ public class ChatActivity extends AppCompatActivity {
                         new RecyclerItemClickListener.OnItemClickListener() {
 
                             @Override
-                            public void onItemClick(View view, int position) {
-                                if (messages.get(position).isHasImage())
-                                    createPopUp(messages.get(position).getImgUrl());
-                            }
+                            public void onItemClick(View view, int position) { }
 
                             @Override
                             public void onLongItemClick(View view, int position) {
@@ -196,20 +225,9 @@ public class ChatActivity extends AppCompatActivity {
                 sendPic();
             }
         });
-
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        messageListAdapter.notifyDataSetChanged();
-        messageList.scrollToPosition(messages.size() - 1);
     }
 
     private void getMessagesFromLocal() {
-        messages.clear();
-
         String sql = "SELECT * FROM " + Constants.TABLE_MESSAGES;
         Cursor cursor = localDb.rawQuery(sql, null);
 
@@ -217,25 +235,21 @@ public class ChatActivity extends AppCompatActivity {
         int sender = cursor.getColumnIndex("sender");
         int message = cursor.getColumnIndex("message");
         int sendDate = cursor.getColumnIndex("sendDate");
-        int transmitted = cursor.getColumnIndex("transmitted");
         int read = cursor.getColumnIndex("read");
-        int hasImage = cursor.getColumnIndex("hasImage");
         int imageUrl = cursor.getColumnIndex("imgUrl");
 
         while (cursor.moveToNext()) {
-            boolean setTransmitted, setRead, setHasImage;
-
-            setTransmitted = cursor.getInt(transmitted) == 1;
+            boolean setRead;
             setRead = cursor.getInt(read) == 1;
-            setHasImage = cursor.getInt(hasImage) == 1;
+            String img = cursor.getString(imageUrl);
 
             if (chatName.equals(cursor.getString(cName))) {
                 ChatMessage cm;
-                if (setHasImage) {
+                if (!img.equals("")) {
                     cm = new ChatMessage(
                             cursor.getString(sender),
                             cursor.getString(message),
-                            cursor.getString(imageUrl),
+                            img,
                             cursor.getLong(sendDate)
                     );
                 } else {
@@ -243,7 +257,7 @@ public class ChatActivity extends AppCompatActivity {
                             cursor.getString(sender),
                             cursor.getString(message),
                             cursor.getLong(sendDate),
-                            setTransmitted,
+                            true,
                             setRead
                     );
                 }
@@ -252,202 +266,152 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
 
+        cursor.close();
         messageListAdapter.notifyDataSetChanged();
         messageList.scrollToPosition(messages.size() - 1);
-        cursor.close();
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        /*if (registration != null)
-            registration.remove();*/
-
-        // localDb.close();
-
-        currentUser.setCurrentChat("");
-        removeTransmittedMessagesFromCloud();
-    }
-
-    /* void showNotification(String title, String message, Drawable avatar) {
-        NotificationManager mNotificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("NM",
-                    "NEW_MESSAGE",
-                    NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription("New message notification");
-            assert mNotificationManager != null;
-            mNotificationManager.createNotificationChannel(channel);
-        }
-        BitmapDrawable drawable = (BitmapDrawable) avatar;
-        Bitmap bitmap = drawable.getBitmap();
-        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext(), "NM")
-                .setSmallIcon(R.drawable.firebase) // notification icon
-                .setContentTitle(title) // title for notification
-                .setContentText(message)// message for notification
-                .setLargeIcon(bitmap) // avatar (large icon) for notification
-                .setAutoCancel(true); // clear notification after click
-        Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        mBuilder.setContentIntent(pi);
-        assert mNotificationManager != null;
-        mNotificationManager.notify(0, mBuilder.build());
+    /*
+    private void getMessages() {
+        db.collection("chat").document(chatName)
+                .collection("message").get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot document : Objects.requireNonNull(task.getResult())) {
+                                ChatMessage cm = document.toObject(ChatMessage.class);
+                                if (!cm.getSender().equals(currentUser.getUser().getUsername())
+                                        && !cm.isRead()) {
+                                    // New messages from other side
+                                    // Update cloud and add message to list
+                                    // Also write to local db
+                                    Log.d("CHAT_TEST", cm.getMessage());
+                                    messages.add(cm);
+                                    messageListAdapter.notifyDataSetChanged();
+                                    messageList.scrollToPosition(messages.size() - 1);
+                                    db.collection("chat").document(chatName)
+                                            .collection("message").document(document.getId())
+                                            .update("read", true);
+                                    writeToLocal(cm);
+                                }
+                                else if (cm.isRead()) {
+                                    // Messages that current user sent and read by other side
+                                    // Update message in message list and update local db
+                                    int idx = messages.indexOf(cm);
+                                    messages.get(idx).setRead(true);
+                                    messageListAdapter.notifyDataSetChanged();
+                                    messageList.scrollToPosition(messages.size() - 1);
+                                    writeToLocal(cm);
+                                }
+                            }
+                            // Listen new messages
+                            listen();
+                        }
+                        else
+                            Toast.makeText(ChatActivity.this, "Error while getting messages!",
+                                    Toast.LENGTH_LONG).show();
+                    }
+                });
     }
     */
 
     private void listen() {
-        if (chatName == null)
-            return;
-
-        final DocumentReference ref = db.collection("chat").document(chatName);
-        ref.addSnapshotListener(new EventListener<DocumentSnapshot>() {
-            @Override
-            public void onEvent(@Nullable DocumentSnapshot snapshot, @Nullable FirebaseFirestoreException e) {
-                if (e != null) {
-                    Toast.makeText(ChatActivity.this, "Real time listening error!",
-                            Toast.LENGTH_LONG).show();
-                    return;
-                }
-
-                if (snapshot != null && snapshot.exists()) {
-                    Chat updatedChat = snapshot.toObject(Chat.class);
-                    if (updatedChat != null) {
-                        ArrayList<ChatMessage> fromDb = updatedChat.getMessages();
-                        for (int i=0; i<fromDb.size(); i++) {
-                            ChatMessage cm = fromDb.get(i);
-                            if (!messages.contains(cm)) {
-                                messages.add(cm);
-                                /* if (!cm.getSender().equals(currentUser.getUser().getUsername()))
-                                    showNotification(
-                                            cm.getSender(),
-                                            cm.getMessage(),
-                                            headerAvatar.getDrawable()); */
-                            } else if (cm.isRead()) {
-                                int oldMsgIdx = messages.indexOf(cm);
-                                ChatMessage oldMsg = messages.get(oldMsgIdx);
-                                oldMsg.setRead(true);
-                                messages.set(oldMsgIdx, oldMsg);
-                            }
-                            if (!cm.getSender().equals(currentUser.getUser().getUsername()))
-                                fromDb.get(i).setRead(true);
-                            writeToLocal(cm);
-                        }
-                        messageListAdapter.notifyDataSetChanged();
-                        messageList.scrollToPosition(messages.size() - 1);
-
-                        /*for (Iterator<ChatMessage> iterator = fromDb.iterator(); iterator.hasNext(); ) {
-                            ChatMessage cm = iterator.next();
-                            if (cm.isTransmitted()) {
-                                iterator.remove();
-                            }
-                        }
-                        */
-                        db.collection("chat").document(chatName).update("messages", fromDb);
-                    }
-                    else
-                        Toast.makeText(ChatActivity.this, "lastMessage null error!",
-                                Toast.LENGTH_LONG).show();
-                }
-            }
-        });
-    }
-
-    private void sendMessage(final String message) {
-        long createDate = Timestamp.now().getSeconds();
-        final ChatMessage chatMessage = new ChatMessage(currentUser.getUser().getUsername(), message, createDate);
-        messages.add(chatMessage);
-        messageListAdapter.notifyDataSetChanged();
-        messageList.scrollToPosition(messages.size() - 1);
-        db.collection("chat").document(chatName).update(
-                "messages",
-                FieldValue.arrayUnion(chatMessage),
-                "lastMessage",
-                message,
-                "lastMessageDate",
-                createDate)
-                .addOnCompleteListener(new OnCompleteListener<Void>() {
+        registration = db.collection("chat").document(chatName).collection("message")
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        if (task.isSuccessful()) {
-                            messages.get(messages.indexOf(chatMessage)).setTransmitted(true);
-                            messageListAdapter.notifyDataSetChanged();
-                            chatMessage.setTransmitted(true);
-                            writeToLocal(chatMessage);
-                        } else {
-                            Toast.makeText(ChatActivity.this, "Error while sending a message",
-                                    Toast.LENGTH_SHORT).show();
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots,
+                                        @Nullable FirebaseFirestoreException e) {
+                        if (e != null) {
+                            Toast.makeText(ChatActivity.this, "Firebase listen error!",
+                                    Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        assert queryDocumentSnapshots != null;
+                        for (DocumentChange dc : queryDocumentSnapshots.getDocumentChanges()) {
+                            if (dc.getDocument().getMetadata().hasPendingWrites())
+                                continue;
+
+                            ChatMessage cm;
+                            switch (dc.getType()) {
+                                case ADDED:
+                                    cm = dc.getDocument().toObject(ChatMessage.class);
+                                    if (!cm.getSender().equals(currentUser.getUser().getUsername())) {
+                                        // new message from other side
+                                        // add message to list and write to local db
+                                        // also set read true in cloud
+                                        messages.add(cm);
+                                        messageListAdapter.notifyDataSetChanged();
+                                        messageList.scrollToPosition(messages.size() - 1);
+                                        writeToLocal(cm);
+                                        db.collection("chat").document(chatName)
+                                                .collection("message").document(dc.getDocument().getId())
+                                                .update("read", true);
+                                    }
+                                    break;
+                                case MODIFIED:
+                                    cm = dc.getDocument().toObject(ChatMessage.class);
+                                    if (cm.getSender().equals(currentUser.getUser().getUsername())) {
+                                        // other side read message of current user
+                                        // update message list and local db
+                                        int idx = messages.indexOf(cm);
+                                        if (idx != -1) {
+                                            messages.get(idx).setRead(true);
+                                            messageListAdapter.notifyDataSetChanged();
+                                        }
+                                        writeToLocal(cm);
+                                    }
+                            }
+                            break;
                         }
                     }
                 });
     }
 
-    private void getMessages() {
-        db.collection("chat").document(chatName).get()
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+    private void sendMessage(String message) {
+        long createDate = Timestamp.now().getSeconds();
+        ChatMessage cm = new ChatMessage(
+                currentUser.getUser().getUsername(),
+                message,
+                createDate
+        );
+        messages.add(cm);
+
+        final ChatMessage transmittedCm = new ChatMessage(cm);
+        transmittedCm.setTransmitted(true);
+
+        db.collection("chat").document(chatName).collection("message")
+                .add(transmittedCm)
+                .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
                     @Override
-                    public void onSuccess(DocumentSnapshot snapshot) {
-                        Chat chat = snapshot.toObject(Chat.class);
-                        if (chat != null) {
-                            ArrayList<ChatMessage> newMessages = chat.getMessages();
-                            processNewMessages(newMessages);
-                        }
-                        else
-                            Toast.makeText(ChatActivity.this, "Firebase error while getting messages!",
-                                    Toast.LENGTH_LONG).show();
+                    public void onSuccess(DocumentReference documentReference) {
+                        int idx = messages.indexOf(transmittedCm);
+                        messages.get(idx).setTransmitted(true);
+                        messageListAdapter.notifyDataSetChanged();
+                        writeToLocal(transmittedCm);
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(ChatActivity.this, "Error while loading messages.",
+                        Toast.makeText(ChatActivity.this, e.getLocalizedMessage(),
                                 Toast.LENGTH_LONG).show();
                     }
                 });
     }
 
-    private void processNewMessages(ArrayList<ChatMessage> newMessages) {
-        for (int i=0; i<newMessages.size(); i++) {
-            ChatMessage cm = newMessages.get(i);
-            if (!messages.contains(cm)) {
-                messages.add(cm);
-                writeToLocal(cm);
-            }
-            if (!cm.getSender().equals(currentUser.getUser().getUsername()))
-                newMessages.get(i).setRead(true);
-        }
-        messageListAdapter.notifyDataSetChanged();
-        messageList.scrollToPosition(messages.size() - 1);
-
-        /*for (Iterator<ChatMessage> iterator = newMessages.iterator(); iterator.hasNext(); ) {
-            ChatMessage cm = iterator.next();
-            if (cm.isTransmitted()) {
-                iterator.remove();
-            }
-        }*/
-
-        db.collection("chat").document(chatName).update("messages", newMessages)
-                .addOnCompleteListener(new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        listen();
-                    }
-                });
-    }
-
-    private void writeToLocal(ChatMessage chatMessage) {
-        String query = "REPLACE INTO " + Constants.TABLE_MESSAGES + "(chatName, " +
-                "sender, message, sendDate, transmitted, read, hasImage, imgUrl) " +
-                "VALUES (?, ?, ?, ?, " + (chatMessage.isTransmitted() ? 1 : 0) + ", " +
-                (chatMessage.isRead() ? 1 : 0) + ", " + (chatMessage.isHasImage() ? 1 : 0) + ", ?)";
+    private void writeToLocal(ChatMessage cm) {
+        String query = "REPLACE INTO " + Constants.TABLE_MESSAGES +
+                "(chatName, sender, message, sendDate, read, imgUrl) VALUES" +
+                "(?, ?, ?, ?, " + (cm.isRead() ? 1 : 0) + ", ?)";
 
         SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
         sqLiteStatement.bindString(1, chatName);
-        sqLiteStatement.bindString(2, chatMessage.getSender());
-        sqLiteStatement.bindString(3, chatMessage.getMessage());
-        sqLiteStatement.bindLong(4, chatMessage.getSendDate());
-        sqLiteStatement.bindString(5, chatMessage.getImgUrl());
+        sqLiteStatement.bindString(2, cm.getSender());
+        sqLiteStatement.bindString(3, cm.getMessage());
+        sqLiteStatement.bindLong(4, cm.getSendDate());
+        sqLiteStatement.bindString(5, cm.getImgUrl());
         sqLiteStatement.execute();
     }
 
@@ -485,25 +449,31 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    public void removeTransmittedMessagesFromCloud() {
-        final String currentUsername = currentUser.getUser().getUsername();
-        db.collection("chat").document(chatName).get()
-                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                if (task.isSuccessful()) {
-                    Chat chat = Objects.requireNonNull(task.getResult()).toObject(Chat.class);
-                    assert chat != null;
-                    ArrayList<ChatMessage> cmList = chat.getMessages();
-                    for (Iterator<ChatMessage> iterator = cmList.iterator(); iterator.hasNext();) {
-                        ChatMessage cm = iterator.next();
-                        if (cm.isRead() && !cm.getSender().equals(currentUsername))
-                            iterator.remove();
+    private void removeRedundantMessagesFromCloud() {
+        final WriteBatch batch = db.batch();
+
+        db.collection("chat").document(chatName)
+                .collection("message")
+                .whereEqualTo("sender", currentUser.getUser().getUsername())
+                .whereEqualTo("read", true).get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot documentSnapshot : Objects.requireNonNull(task.getResult())) {
+                                ChatMessage cm = documentSnapshot.toObject(ChatMessage.class);
+                                int idx = messages.indexOf(cm);
+                                if (messages.get(idx).isRead())
+                                    batch.delete(
+                                            db.collection("chat").document(chatName)
+                                                    .collection("message").document(documentSnapshot.getId())
+                                    );
+                            }
+
+                            batch.commit();
+                        }
                     }
-                    db.collection("chat").document(chatName).update("messages", cmList);
-                }
-            }
-        });
+                });
     }
 
     private void sendPic() {

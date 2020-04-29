@@ -46,7 +46,6 @@ import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Objects;
 import java.util.Random;
 
@@ -60,77 +59,18 @@ public class HomeActivity extends AppCompatActivity {
     private ListenerRegistration registrationChatMsg;
     private SQLiteDatabase localDb;
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
-        Button tempSettings = findViewById(R.id.tempSettingsBtn);
-        tempSettings.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intentToSettings = new Intent(HomeActivity.this, SettingsActivity.class);
-                startActivity(intentToSettings);
-            }
-        });
-
-        Button tempSignOut = findViewById(R.id.tempSignout);
-        tempSignOut.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FirebaseAuth.getInstance().signOut();
-            }
-        });
-
-        Button tempRandomChat = findViewById(R.id.tempRandomChat);
-        tempRandomChat.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                getRandomUser(Constants.RAND_LIM);
-            }
-        });
-
-        RecyclerView recyclerView = findViewById(R.id.chatList);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-
-        chats = new ArrayList<>();
-        db = FirebaseFirestore.getInstance();
-        currentUser = CurrentUser.getInstance();
-
-        chatListRecyclerAdapter = new ChatListRecyclerAdapter(getApplicationContext(),
-                chats,
-                currentUser.getUser().getUsername());
-        recyclerView.setAdapter(chatListRecyclerAdapter);
+        initialize();
 
         localDb = openOrCreateDatabase(Constants.DB_NAME, Context.MODE_PRIVATE, null);
         localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
                 Constants.TABLE_CHAT +
                 "(chatName VARCHAR PRIMARY KEY, basedOn INT, username1 VARCHAR, username2 VARCHAR, " +
                 "avatar1 VARCHAR, avatar2 VARCHAR, lastMessage VARCHAR, lastMessageDate LONG)");
-
-        recyclerView.addOnItemTouchListener(
-                new RecyclerItemClickListener(getApplicationContext(), recyclerView,
-                        new RecyclerItemClickListener.OnItemClickListener() {
-                            @Override public void onItemClick(View view, int position) {
-                                Intent intentToChat = new Intent(HomeActivity.this, ChatActivity.class);
-                                intentToChat.putExtra("chatName", chats.get(position).getChatName());
-                                int offset = getOffsetOfCharSequence(
-                                        chats.get(position).getChatName(),
-                                        currentUser.getUser().geteMail());
-                                if (offset == 0) {
-                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2());
-                                    intentToChat.putExtra("chatUsername", chats.get(position).getUsername2());
-                                } else {
-                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1());
-                                    intentToChat.putExtra("chatUsername", chats.get(position).getUsername1());
-                                }
-                                startActivity(intentToChat);
-                            }
-
-                            @Override public void onLongItemClick(View view, int position) { }
-                        })
-        );
 
         ArrayList<String> newMatchesSafe = currentUser.getUser().getMatches();
         ArrayList<String> newMatches = new ArrayList<>(newMatchesSafe);
@@ -147,54 +87,26 @@ public class HomeActivity extends AppCompatActivity {
         listenChatMessages();
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onStart() {
         super.onStart();
 
-        listenChatMessages();
-        sortList(chats);
         chatListRecyclerAdapter.notifyDataSetChanged();
     }
 
-    void showNotification(String title, String message, String avatarUrl) {
-        NotificationManager mNotificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("NC",
-                    "NEW_CHAT",
-                    NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription("New chat is opened");
-            assert mNotificationManager != null;
-            mNotificationManager.createNotificationChannel(channel);
-        }
-        final Bitmap[] avatar = new Bitmap[1];
-        Picasso.get().load(avatarUrl).into(new Target() {
-            @Override
-            public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
-                avatar[0] = bitmap;
-            }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
 
-            @Override
-            public void onBitmapFailed(Exception e, Drawable errorDrawable) { }
+        /*if (registration != null)
+            registration.remove();
 
-            @Override
-            public void onPrepareLoad(Drawable placeHolderDrawable) {}
-        });
-        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext(), "NC")
-                .setSmallIcon(R.drawable.firebase) // notification icon
-                .setContentTitle(title) // title for notification
-                .setContentText(message)// message for notification
-                .setLargeIcon(avatar[0]) // avatar (big pic) for notification
-                .setAutoCancel(true); // clear notification after click
-        Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        mBuilder.setContentIntent(pi);
-        assert mNotificationManager != null;
-        mNotificationManager.notify(0, mBuilder.build());
+        if (registrationChatMsg != null)
+            registrationChatMsg.remove();*/
+
+        // localDb.close();
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     private ArrayList<String> getFromLocalDb() {
         ArrayList<String> newMatches = new ArrayList<>();
         chats.clear();
@@ -235,11 +147,108 @@ public class HomeActivity extends AppCompatActivity {
             ));
         }
 
-        sortList(chats);
         chatListRecyclerAdapter.notifyDataSetChanged();
         cursor.close();
 
         return newMatches;
+    }
+
+    private void initialize() {
+        chats = new ArrayList<>();
+        db = FirebaseFirestore.getInstance();
+        currentUser = CurrentUser.getInstance();
+
+        Button tempSettings = findViewById(R.id.tempSettingsBtn);
+        tempSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intentToSettings = new Intent(HomeActivity.this, SettingsActivity.class);
+                startActivity(intentToSettings);
+            }
+        });
+
+        Button tempSignOut = findViewById(R.id.tempSignout);
+        tempSignOut.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FirebaseAuth.getInstance().signOut();
+            }
+        });
+
+        Button tempRandomChat = findViewById(R.id.tempRandomChat);
+        tempRandomChat.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getRandomUser(Constants.RAND_LIM);
+            }
+        });
+
+        RecyclerView recyclerView = findViewById(R.id.chatList);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        chatListRecyclerAdapter = new ChatListRecyclerAdapter(getApplicationContext(),
+                chats,
+                currentUser.getUser().getUsername());
+        recyclerView.setAdapter(chatListRecyclerAdapter);
+
+        recyclerView.addOnItemTouchListener(
+                new RecyclerItemClickListener(getApplicationContext(), recyclerView,
+                        new RecyclerItemClickListener.OnItemClickListener() {
+                            @Override public void onItemClick(View view, int position) {
+                                Intent intentToChat = new Intent(HomeActivity.this, ChatActivity.class);
+                                intentToChat.putExtra("chatName", chats.get(position).getChatName());
+                                int offset = getOffsetOfCharSequence(
+                                        chats.get(position).getChatName(),
+                                        currentUser.getUser().geteMail());
+                                if (offset == 0) {
+                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2());
+                                    intentToChat.putExtra("chatUsername", chats.get(position).getUsername2());
+                                } else {
+                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1());
+                                    intentToChat.putExtra("chatUsername", chats.get(position).getUsername1());
+                                }
+                                startActivity(intentToChat);
+                            }
+
+                            @Override public void onLongItemClick(View view, int position) { }
+                        })
+        );
+    }
+
+    void showNotification(String title, String message, String avatarUrl) {
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("NC",
+                    "NEW_CHAT",
+                    NotificationManager.IMPORTANCE_DEFAULT);
+            channel.setDescription("New chat is opened");
+            assert mNotificationManager != null;
+            mNotificationManager.createNotificationChannel(channel);
+        }
+        final Bitmap[] avatar = new Bitmap[1];
+        Picasso.get().load(avatarUrl).into(new Target() {
+            @Override
+            public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                avatar[0] = bitmap;
+            }
+
+            @Override
+            public void onBitmapFailed(Exception e, Drawable errorDrawable) { }
+
+            @Override
+            public void onPrepareLoad(Drawable placeHolderDrawable) {}
+        });
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext(), "NC")
+                .setSmallIcon(R.drawable.firebase) // notification icon
+                .setContentTitle(title) // title for notification
+                .setContentText(message)// message for notification
+                .setLargeIcon(avatar[0]) // avatar (big pic) for notification
+                .setAutoCancel(true); // clear notification after click
+        Intent intent = new Intent(getApplicationContext(), HomeActivity.class);
+        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        mBuilder.setContentIntent(pi);
+        assert mNotificationManager != null;
+        mNotificationManager.notify(0, mBuilder.build());
     }
 
     private void getRandomUser(int randLim) {
@@ -438,7 +447,6 @@ public class HomeActivity extends AppCompatActivity {
                                     showNotification("New Chat", chat.getUsername1(), chat.getAvatar1());
                             }
                         }
-                        sortList(chats);
                         chatListRecyclerAdapter.notifyDataSetChanged();
                         listenChatMessages();
                         writeToLocalDb();
@@ -477,19 +485,6 @@ public class HomeActivity extends AppCompatActivity {
             }
             }
         });
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        /*if (registration != null)
-            registration.remove();
-
-        if (registrationChatMsg != null)
-            registrationChatMsg.remove();*/
-
-        // localDb.close();
     }
 
     private void writeToLocalDb() {
@@ -562,7 +557,6 @@ public class HomeActivity extends AppCompatActivity {
                                         showNotification(updatedChat.getUsername1(),
                                                 updatedChat.getLastMessage(), updatedChat.getAvatar1());
                                 }
-                                sortList(chats);
                                 chatListRecyclerAdapter.notifyDataSetChanged();
                                 writeToLocalDb();
                             }
@@ -586,20 +580,6 @@ public class HomeActivity extends AppCompatActivity {
         }
 
         return -1;
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    private void sortList(ArrayList<Chat> chats) {
-        chats.sort(new Comparator<Chat>() {
-            @Override
-            public int compare(Chat o1, Chat o2) {
-                if (o1.getLastMessageDate() > o2.getLastMessageDate())
-                    return -1;
-                else if (o1.getLastMessageDate() < o2.getLastMessageDate())
-                    return 1;
-                return 0;
-            }
-        });
     }
 
 }

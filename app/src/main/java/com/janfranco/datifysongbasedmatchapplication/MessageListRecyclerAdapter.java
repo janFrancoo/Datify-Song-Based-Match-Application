@@ -64,7 +64,7 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
                 message.getSendDate() * 1000L
         ).toString());
 
-        if (message.isHasImage()) {
+        if (!message.getImgUrl().equals("")) {
             Picasso.get().load(message.getImgUrl()).into(holder.image);
             holder.image.getLayoutParams().height = 500;
             holder.image.getLayoutParams().width = 500;
