@@ -70,6 +70,9 @@ class Constants {
 
     // Random
     static int RAND_LIM = 10000;
+    static int RAND_UP = 1;
+    static int RAND_DOWN = 0;
+    static int RAND_TRY_LIM = 5;
 
     // Date
     static String DATE_MESSAGE = "HH:mm"; // Hours and minutes for chat messages

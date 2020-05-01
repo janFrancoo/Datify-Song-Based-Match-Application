@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.res.ResourcesCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -16,6 +17,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -42,7 +44,6 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.EventListener;
-import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -54,6 +55,8 @@ import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Picasso;
 
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
@@ -64,7 +67,7 @@ public class ChatActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private FirebaseStorage fStorage;
     private Uri imgData;
-    private Button sendMessageBtn;
+    private Button sendMessageBtn, attachmentBtn;
     private EditText messageInput;
     private CurrentUser currentUser;
     private ArrayList<ChatMessage> messages;
@@ -75,7 +78,8 @@ public class ChatActivity extends AppCompatActivity {
     private SQLiteDatabase localDb;
     private ListenerRegistration registration;
 
-    //ToDo: SendMessage function -> Update chat lastMessage & lastMessageDate
+    // ToDo: Add image click listener -> popup
+    // ToDo: Image caches for receiver
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -174,11 +178,39 @@ public class ChatActivity extends AppCompatActivity {
         });
         updateHeader();
 
+        attachmentBtn = findViewById(R.id.sendAttachmentBtn);
+        attachmentBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                addImage();
+            }
+        });
+        attachmentBtn.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                attachmentBtn.setBackground(ResourcesCompat.getDrawable(getResources(),
+                        R.drawable.tick, null));
+                return false;
+            }
+        });
+
         sendMessageBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String message = messageInput.getText().toString().trim();
-                sendMessage(message);
+                long createDate = Timestamp.now().getSeconds();
+
+                Drawable drawable = attachmentBtn.getBackground();
+                if (!Objects.equals(drawable.getConstantState(),
+                        Objects.requireNonNull(ResourcesCompat.getDrawable(getResources(),
+                                R.drawable.tick, null)).getConstantState())) {
+                    uploadImage(message, createDate);
+                    attachmentBtn.setBackground(ResourcesCompat.getDrawable(getResources(),
+                            R.drawable.tick, null));
+                }
+                else
+                    sendMessage(message, createDate);
+
                 messageInput.setText("");
                 // Hide keyboard after sending
                 View view = ChatActivity.this.getCurrentFocus();
@@ -217,14 +249,6 @@ public class ChatActivity extends AppCompatActivity {
                 }
             }
         });
-
-        Button attachmentBtn = findViewById(R.id.sendAttachmentBtn);
-        attachmentBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendPic();
-            }
-        });
     }
 
     private void getMessagesFromLocal() {
@@ -250,7 +274,9 @@ public class ChatActivity extends AppCompatActivity {
                             cursor.getString(sender),
                             cursor.getString(message),
                             img,
-                            cursor.getLong(sendDate)
+                            cursor.getLong(sendDate),
+                            true,
+                            setRead
                     );
                 } else {
                     cm = new ChatMessage(
@@ -341,10 +367,12 @@ public class ChatActivity extends AppCompatActivity {
                                         // new message from other side
                                         // add message to list and write to local db
                                         // also set read true in cloud
-                                        messages.add(cm);
-                                        messageListAdapter.notifyDataSetChanged();
-                                        messageList.scrollToPosition(messages.size() - 1);
-                                        writeToLocal(cm);
+                                        if (!messages.contains(cm)) {
+                                            messages.add(cm);
+                                            messageListAdapter.notifyDataSetChanged();
+                                            messageList.scrollToPosition(messages.size() - 1);
+                                            writeToLocal(cm);
+                                        }
                                         db.collection("chat").document(chatName)
                                                 .collection("message").document(dc.getDocument().getId())
                                                 .update("read", true);
@@ -369,9 +397,10 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
 
-    private void sendMessage(String message) {
-        long createDate = Timestamp.now().getSeconds();
-        ChatMessage cm = new ChatMessage(
+    private void sendMessage(String message, long createDate) {
+        ChatMessage cm;
+
+        cm = new ChatMessage(
                 currentUser.getUser().getUsername(),
                 message,
                 createDate
@@ -390,6 +419,7 @@ public class ChatActivity extends AppCompatActivity {
                         messages.get(idx).setTransmitted(true);
                         messageListAdapter.notifyDataSetChanged();
                         writeToLocal(transmittedCm);
+                        updateChat(transmittedCm);
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -399,6 +429,40 @@ public class ChatActivity extends AppCompatActivity {
                                 Toast.LENGTH_LONG).show();
                     }
                 });
+    }
+
+    private void sendMessage(ChatMessage cm, String imageUrl) {
+        final ChatMessage transmittedCm = new ChatMessage(cm);
+        transmittedCm.setTransmitted(true);
+
+        final ChatMessage imageAddedCm = new ChatMessage(transmittedCm);
+        imageAddedCm.setImgUrl(imageUrl);
+
+        db.collection("chat").document(chatName).collection("message")
+                .add(imageAddedCm)
+                .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                    @Override
+                    public void onSuccess(DocumentReference documentReference) {
+                        int idx = messages.indexOf(imageAddedCm);
+                        messages.get(idx).setTransmitted(true);
+                        messageListAdapter.notifyDataSetChanged();
+                        writeToLocal(transmittedCm);
+                        updateChat(transmittedCm);
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(ChatActivity.this, e.getLocalizedMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    private void updateChat(ChatMessage cm) {
+        db.collection("chat").document(chatName)
+                .update("lastMessage", cm.getMessage(),
+                        "lastMessageDate", cm.getSendDate());
     }
 
     private void writeToLocal(ChatMessage cm) {
@@ -463,11 +527,13 @@ public class ChatActivity extends AppCompatActivity {
                             for (QueryDocumentSnapshot documentSnapshot : Objects.requireNonNull(task.getResult())) {
                                 ChatMessage cm = documentSnapshot.toObject(ChatMessage.class);
                                 int idx = messages.indexOf(cm);
-                                if (messages.get(idx).isRead())
-                                    batch.delete(
-                                            db.collection("chat").document(chatName)
-                                                    .collection("message").document(documentSnapshot.getId())
-                                    );
+                                if (idx != -1) {
+                                    if (messages.get(idx).isRead())
+                                        batch.delete(
+                                                db.collection("chat").document(chatName)
+                                                        .collection("message").document(documentSnapshot.getId())
+                                        );
+                                }
                             }
 
                             batch.commit();
@@ -476,13 +542,13 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
 
-    private void sendPic() {
+    private void addImage() {
         if(ContextCompat.checkSelfPermission(this,
                 Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
                     new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
         } else {
-            Intent toGallery = new Intent(Intent.ACTION_PICK,
+            Intent toGallery = new Intent(Intent.ACTION_OPEN_DOCUMENT,
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             startActivityForResult(toGallery, 2);
         }
@@ -493,7 +559,7 @@ public class ChatActivity extends AppCompatActivity {
                                            @NonNull int[] grantResults) {
         if(requestCode == 1) {
             if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Intent toGallery = new Intent(Intent.ACTION_PICK,
+                Intent toGallery = new Intent(Intent.ACTION_OPEN_DOCUMENT,
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                 startActivityForResult(toGallery, 2);
             }
@@ -505,15 +571,32 @@ public class ChatActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if(requestCode == 2 && resultCode == RESULT_OK && data != null) {
             imgData = data.getData();
-            uploadImage();
+            InputStream inputStream = null;
+            try {
+                inputStream = getContentResolver().openInputStream(imgData);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            Drawable drawable = Drawable.createFromStream(inputStream, imgData.toString() );
+            attachmentBtn.setBackground(drawable);
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void uploadImage() {
+    private void uploadImage(final String message, final long createDate) {
         if (imgData != null) {
+            final ChatMessage cm = new ChatMessage(
+                    currentUser.getUser().getUsername(),
+                    message,
+                    imgData.toString(),
+                    createDate
+            );
+            messages.add(cm);
+            messageListAdapter.notifyDataSetChanged();
+            messageList.scrollToPosition(messages.size() - 1);
+
             UUID uuid = UUID.randomUUID();
-            final String imgName = "chatMessages/" + uuid + ".jpg";
+            final String imgName = "chatImages/" + uuid + ".jpg";
             fStorage.getReference().child(imgName).putFile(imgData).addOnSuccessListener(
                     new OnSuccessListener<UploadTask.TaskSnapshot>() {
                         @Override
@@ -523,39 +606,7 @@ public class ChatActivity extends AppCompatActivity {
                                 @Override
                                 public void onSuccess(Uri uri) {
                                     String downloadUrl = uri.toString();
-                                    long createDate = Timestamp.now().getSeconds();
-                                    String message = messageInput.getText().toString();
-                                    if (message.equals(""))
-                                        message = "A pretty new image...";
-
-                                    final ChatMessage cm = new ChatMessage(
-                                            currentUser.getUser().getUsername(),
-                                            message,
-                                            downloadUrl,
-                                            createDate
-                                    );
-
-                                    messages.add(cm);
-                                    messageListAdapter.notifyDataSetChanged();
-                                    messageList.scrollToPosition(messages.size() - 1);
-                                    db.collection("chat").document(chatName).update(
-                                            "messages",
-                                            FieldValue.arrayUnion(cm),
-                                            "lastMessage",
-                                            message,
-                                            "lastMessageDate",
-                                            createDate
-                                    ).addOnCompleteListener(new OnCompleteListener<Void>() {
-                                        @Override
-                                        public void onComplete(@NonNull Task<Void> task) {
-                                            if (task.isSuccessful()) {
-                                                messages.get(messages.indexOf(cm)).setTransmitted(true);
-                                                messageListAdapter.notifyDataSetChanged();
-                                                cm.setTransmitted(true);
-                                                writeToLocal(cm);
-                                            }
-                                        }
-                                    });
+                                    sendMessage(cm, downloadUrl);
                                 }
                             });
                         }

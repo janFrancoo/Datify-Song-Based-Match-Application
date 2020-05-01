@@ -41,13 +41,21 @@ class ChatMessage {
         this.sendDate = sendDate;
         this.imgUrl = imgUrl;
     }
+    ChatMessage(String sender, String message, String imgUrl, long sendDate, boolean transmitted, boolean read) {
+        this.message = message;
+        this.sender = sender;
+        this.sendDate = sendDate;
+        this.imgUrl = imgUrl;
+        this.transmitted = transmitted;
+        this.read = read;
+    }
 
     // I assume there will be no message at the same timestamp
     @Override
     public boolean equals(@Nullable Object obj) {
         ChatMessage cm = (ChatMessage) obj;
         assert cm != null;
-        return this.sendDate == cm.sendDate;
+        return this.sendDate == cm.sendDate && this.message.equals(cm.message);
     }
 
     public String getSender() {

@@ -71,7 +71,7 @@
         android:id="@+id/sendAttachmentBtn"
         android:layout_width="45dp"
         android:layout_height="45dp"
-        android:background="@android:drawable/ic_menu_add"
+        android:background="@drawable/tick"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
