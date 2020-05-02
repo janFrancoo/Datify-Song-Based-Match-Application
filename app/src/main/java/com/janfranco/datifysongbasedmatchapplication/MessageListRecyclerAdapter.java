@@ -8,6 +8,7 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -74,7 +75,7 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
         ).toString());
 
         if (!message.getImgUrl().equals("")) {
-            if(message.getImgUrl().substring(0, 7).equals("content")) {
+            if(message.getImgUrl().length() > 7 && message.getImgUrl().substring(0, 7).equals("content")) {
                 Uri uri = Uri.parse(message.getImgUrl());
                 try {
                     holder.image.setImageBitmap(getBitmapFromUri(uri));
@@ -83,7 +84,13 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            } else {
+            } else if (message.getImgUrl().startsWith("/")) {
+                    Bitmap bmImg = BitmapFactory.decodeFile(message.getImgUrl());
+                holder.image.setImageBitmap(bmImg);
+                holder.image.getLayoutParams().height = 500;
+                holder.image.getLayoutParams().width = 500;
+            }
+            else {
                 Picasso.get().load(message.getImgUrl()).into(holder.image);
                 holder.image.getLayoutParams().height = 500;
                 holder.image.getLayoutParams().width = 500;

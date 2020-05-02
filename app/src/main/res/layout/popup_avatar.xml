@@ -13,4 +13,13 @@
         android:padding="5dp"
         app:srcCompat="@drawable/defaultavatar" />
 
+    <TextView
+        android:id="@+id/popUpContext"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/popUpAvatar"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="15dp"
+        android:textColor="@android:color/white" />
+
 </RelativeLayout>

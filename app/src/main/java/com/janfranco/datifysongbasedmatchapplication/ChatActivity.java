@@ -17,9 +17,13 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -54,8 +58,11 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 
+import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -77,9 +84,6 @@ public class ChatActivity extends AppCompatActivity {
     private ImageView headerAvatar;
     private SQLiteDatabase localDb;
     private ListenerRegistration registration;
-
-    // ToDo: Add image click listener -> popup
-    // ToDo: Image caches for receiver
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -173,7 +177,7 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (!avatarUrl.matches("default"))
-                    createPopUp(avatarUrl);
+                    createPopUp(headerUsername.getText().toString(), avatarUrl);
             }
         });
         updateHeader();
@@ -229,7 +233,10 @@ public class ChatActivity extends AppCompatActivity {
                         new RecyclerItemClickListener.OnItemClickListener() {
 
                             @Override
-                            public void onItemClick(View view, int position) { }
+                            public void onItemClick(View view, int position) {
+                                createPopUp(messages.get(position).getMessage(),
+                                        messages.get(position).getImgUrl());
+                            }
 
                             @Override
                             public void onLongItemClick(View view, int position) {
@@ -371,7 +378,11 @@ public class ChatActivity extends AppCompatActivity {
                                             messages.add(cm);
                                             messageListAdapter.notifyDataSetChanged();
                                             messageList.scrollToPosition(messages.size() - 1);
-                                            writeToLocal(cm);
+                                            if (!cm.getImgUrl().equals("")) {
+                                                saveImageToGallery(cm);
+                                            } else {
+                                                writeToLocal(cm);
+                                            }
                                         }
                                         db.collection("chat").document(chatName)
                                                 .collection("message").document(dc.getDocument().getId())
@@ -387,8 +398,9 @@ public class ChatActivity extends AppCompatActivity {
                                         if (idx != -1) {
                                             messages.get(idx).setRead(true);
                                             messageListAdapter.notifyDataSetChanged();
+                                            cm.setImgUrl(messages.get(idx).getImgUrl());
+                                            writeToLocal(cm);
                                         }
-                                        writeToLocal(cm);
                                     }
                             }
                             break;
@@ -485,7 +497,7 @@ public class ChatActivity extends AppCompatActivity {
             Picasso.get().load(avatarUrl).into(headerAvatar);
     }
 
-    private void createPopUp(String url) {
+    private void createPopUp(String context, String imageUrl) {
         LayoutInflater inflater = (LayoutInflater)
                 getSystemService(LAYOUT_INFLATER_SERVICE);
         assert inflater != null;
@@ -493,7 +505,28 @@ public class ChatActivity extends AppCompatActivity {
                 null);
 
         ImageView avatar = popupView.findViewById(R.id.popUpAvatar);
-        Picasso.get().load(url).into(avatar);
+        TextView msg = popupView.findViewById(R.id.popUpContext);
+
+        if (!imageUrl.equals("")) {
+            if (imageUrl.length() > 7 && imageUrl.substring(0, 7).equals("content")) {
+                Uri uri = Uri.parse(imageUrl);
+                try {
+                    avatar.setImageBitmap(getBitmapFromUri(uri));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Picasso.get().load(imageUrl).into(avatar);
+            }
+        } else {
+            msg.setTextSize(50);
+            avatar.setImageResource(0);
+        }
+
+        msg.setText(context);
+        Typeface metropolisLight = Typeface.createFromAsset(getApplicationContext().getAssets(),
+                "fonts/Metropolis-Light.otf");
+        msg.setTypeface(metropolisLight);
 
         int width = LinearLayout.LayoutParams.WRAP_CONTENT;
         int height = LinearLayout.LayoutParams.WRAP_CONTENT;
@@ -618,5 +651,58 @@ public class ChatActivity extends AppCompatActivity {
                 }
             });
         }
+    }
+
+    private Bitmap getBitmapFromUri(Uri uri) throws IOException {
+        ParcelFileDescriptor parcelFileDescriptor =
+                getApplicationContext().getContentResolver().openFileDescriptor(uri, "r");
+        assert parcelFileDescriptor != null;
+        FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+        Bitmap image = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+        parcelFileDescriptor.close();
+        return image;
+    }
+
+    private void saveImageToGallery(final ChatMessage cm) {
+        Picasso.get().load(cm.getImgUrl()).into(new Target() {
+            @Override
+            public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                String filePath = MediaStore.Images.Media.insertImage(getContentResolver(), bitmap,
+                        "img-" + cm.getSender() + "-" + cm.getSendDate(), "Datify chat image");
+                cm.setImgUrl(filePath);
+                writeToLocal(cm);
+            }
+
+            @Override
+            public void onBitmapFailed(Exception e, Drawable errorDrawable) { }
+
+            @Override
+            public void onPrepareLoad(Drawable placeHolderDrawable) { }
+        });
+
+        /*String root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).toString() +
+                "/chatMessagesDatify";
+        File dir = new File(root);
+        boolean success = dir.mkdirs();
+        if (!success)
+            Log.i("IMG_SAVE", "!success");
+
+        String fName = "img-" + sender + "-" + date + ".jpg";
+        File file = new File(dir, fName);
+
+        String filePath = file.getAbsolutePath();
+        try {
+            FileOutputStream out = new FileOutputStream(file);
+            bitmapToGal[0].compress(Bitmap.CompressFormat.PNG, 90, out);
+            out.flush();
+            out.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        MediaScannerConnection.scanFile(getApplicationContext(), new String[]{file.getPath()},
+                new String[]{"image/jpeg"}, null);
+
+        return filePath;*/
     }
 }

@@ -3,16 +3,20 @@ package com.janfranco.datifysongbasedmatchapplication;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
@@ -106,6 +110,8 @@ public class HomeActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         currentUser = CurrentUser.getInstance();
         randomChatLimit = 0;
+
+        imageSavePermission();
 
         Button tempSettings = findViewById(R.id.tempSettingsBtn);
         tempSettings.setOnClickListener(new View.OnClickListener() {
@@ -554,6 +560,14 @@ public class HomeActivity extends AppCompatActivity {
                 .setAutoCancel(true);
 
         notificationManager.notify(id, builder.build());
+    }
+
+    private void imageSavePermission() {
+        if(ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+        }
     }
 
 }
