@@ -2,6 +2,8 @@ package com.janfranco.datifysongbasedmatchapplication;
 
 import androidx.annotation.Nullable;
 
+import com.google.firebase.firestore.Exclude;
+
 import java.util.ArrayList;
 
 public class Chat {
@@ -9,9 +11,11 @@ public class Chat {
     private int basedOn, status;
     private long createDate, lastMessageDate;
     private ArrayList<ChatMessage> messages;
-    private String chatName, username1, username2, avatar1, avatar2, lastMessage;
-
-    Chat() { }
+    private String chatName, username1, username2, avatar1, avatar2, lastMessage, avatar1Local, avatar2Local;
+    Chat() {
+        this.avatar1Local = "";
+        this.avatar2Local = "";
+    }
     Chat(String chatName, int basedOn, String username1, String username2,
          String avatar1, String avatar2, String lastMessage, long createDate, long lastMessageDate) {
 
@@ -28,6 +32,9 @@ public class Chat {
         this.lastMessageDate = lastMessageDate;
         this.createDate = createDate;
         this.messages = new ArrayList<>();
+
+        this.avatar1Local = "";
+        this.avatar2Local = "";
     }
 
     @Override
@@ -132,4 +139,23 @@ public class Chat {
         this.lastMessage = lastMessage;
     }
 
+    @Exclude
+    public String getAvatar1Local() {
+        return avatar1Local;
+    }
+
+    @Exclude
+    public void setAvatar1Local(String avatar1Local) {
+        this.avatar1Local = avatar1Local;
+    }
+
+    @Exclude
+    public String getAvatar2Local() {
+        return avatar2Local;
+    }
+
+    @Exclude
+    public void setAvatar2Local(String avatar2Local) {
+        this.avatar2Local = avatar2Local;
+    }
 }
