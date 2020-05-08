@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 public class User {
 
-    private String eMail, username, avatarUrl, bio, gender;
+    private String eMail, username, avatarUrl, bio, gender, currTrack;
     private ArrayList<String> matches;
     private int random;
     private long createDate;
@@ -21,6 +21,7 @@ public class User {
         this.matches = new ArrayList<>();
         this.random = random;
         this.createDate = createDate;
+        this.currTrack = "";
     }
 
     public String geteMail() {
@@ -85,5 +86,13 @@ public class User {
 
     public void setCreateDate(long createDate) {
         this.createDate = createDate;
+    }
+
+    public String getCurrTrack() {
+        return currTrack;
+    }
+
+    public void setCurrTrack(String currTrack) {
+        this.currTrack = currTrack;
     }
 }

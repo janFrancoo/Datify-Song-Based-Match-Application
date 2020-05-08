@@ -82,4 +82,7 @@ class Constants {
     static String TABLE_CHAT = "chats";
     static String TABLE_MESSAGES = "messages";
 
+    static String DB_NAME_2 = "Track";
+    static String TABLE_TRACKS = "tracks";
+
 }

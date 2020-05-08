@@ -138,10 +138,16 @@ public class HomeActivity extends AppCompatActivity {
                                         chats.get(position).getChatName(),
                                         currentUser.getUser().geteMail());
                                 if (offset == 0) {
-                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2());
+                                    if (!chats.get(position).getAvatar2Local().equals(""))
+                                        intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2Local());
+                                    else
+                                        intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2());
                                     intentToChat.putExtra("chatUsername", chats.get(position).getUsername2());
                                 } else {
-                                    intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1());
+                                    if (!chats.get(position).getAvatar1Local().equals(""))
+                                        intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1Local());
+                                    else
+                                        intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1());
                                     intentToChat.putExtra("chatUsername", chats.get(position).getUsername1());
                                 }
                                 startActivity(intentToChat);
@@ -264,6 +270,9 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     private void listenChats() {
+        if (chatNames.isEmpty())
+            return;
+
         chatListener = db.collection("chat")
                 .whereIn(FieldPath.documentId(), chatNames)
                 .addSnapshotListener((queryDocumentSnapshots, e) -> {
