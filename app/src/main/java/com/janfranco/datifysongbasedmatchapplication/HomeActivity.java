@@ -137,18 +137,28 @@ public class HomeActivity extends AppCompatActivity {
                                 int offset = getOffsetOfCharSequence(
                                         chats.get(position).getChatName(),
                                         currentUser.getUser().geteMail());
+                                String chatName = chats.get(position).getChatName();
+                                int chatNameLen = chatName.length();
+                                int currMailLen = currentUser.getUser().geteMail().length();
+                                int matchMailLen = chatName.length() - currMailLen - 1;
                                 if (offset == 0) {
                                     if (!chats.get(position).getAvatar2Local().equals(""))
                                         intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2Local());
                                     else
                                         intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar2());
                                     intentToChat.putExtra("chatUsername", chats.get(position).getUsername2());
+                                    intentToChat.putExtra("matchMail", chats.get(position).getChatName().substring(
+                                            chatNameLen - currMailLen, chatNameLen - currMailLen + matchMailLen
+                                    ));
                                 } else {
                                     if (!chats.get(position).getAvatar1Local().equals(""))
                                         intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1Local());
                                     else
                                         intentToChat.putExtra("chatAvatar", chats.get(position).getAvatar1());
                                     intentToChat.putExtra("chatUsername", chats.get(position).getUsername1());
+                                    intentToChat.putExtra("matchMail", chats.get(position).getChatName().substring(
+                                            0, matchMailLen
+                                    ));
                                 }
                                 startActivity(intentToChat);
                             }

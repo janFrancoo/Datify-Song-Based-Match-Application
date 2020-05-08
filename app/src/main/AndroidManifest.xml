@@ -14,7 +14,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:windowSoftInputMode="adjustResize">
-        <activity android:name=".SpotifyActivity"></activity>
+        <activity android:name=".ProfileActivity"></activity>
+        <activity android:name=".SpotifyActivity" />
         <activity android:name=".ChatActivity" />
         <activity android:name=".SettingsActivity" />
         <activity android:name=".RegisterActivity" />

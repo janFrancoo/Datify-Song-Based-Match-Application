@@ -70,7 +70,7 @@ import java.util.UUID;
 
 public class ChatActivity extends AppCompatActivity {
 
-    private String chatName, avatarUrl, chatUsername;
+    private String chatName, avatarUrl, chatUsername, matchMail;
     private FirebaseFirestore db;
     private FirebaseStorage fStorage;
     private Uri imgData;
@@ -138,6 +138,7 @@ public class ChatActivity extends AppCompatActivity {
         sendMessageBtn = findViewById(R.id.sendMessageBtn);
         sendMessageBtn.setEnabled(false);
 
+        matchMail = getIntent().getStringExtra("matchMail");
         avatarUrl = getIntent().getStringExtra("chatAvatar");
         chatUsername = getIntent().getStringExtra("chatUsername");
 
@@ -495,6 +496,17 @@ public class ChatActivity extends AppCompatActivity {
         headerUsername.setText(chatUsername);
         if (!avatarUrl.equals("default"))
             Picasso.get().load(avatarUrl).into(headerAvatar);
+
+        headerUsername.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intentToProfile = new Intent(ChatActivity.this, ProfileActivity.class);
+                intentToProfile.putExtra("mail", matchMail);
+                intentToProfile.putExtra("username", chatUsername);
+                intentToProfile.putExtra("avatarUrl", avatarUrl);
+                startActivity(intentToProfile);
+            }
+        });
     }
 
     private void createPopUp(String context, String imageUrl) {
