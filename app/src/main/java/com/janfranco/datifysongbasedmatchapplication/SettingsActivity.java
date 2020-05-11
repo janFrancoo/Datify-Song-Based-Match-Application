@@ -154,6 +154,16 @@ public class SettingsActivity extends AppCompatActivity {
                     bio.animate().scaleX(1f).scaleY(1f).setDuration(500).start();
             }
         });
+
+        Button blockedUsersBtn = findViewById(R.id.blockedUsersBtn);
+        blockedUsersBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intentToBlockedUsers = new Intent(SettingsActivity.this, BlockedUsersActivity.class);
+                startActivity(intentToBlockedUsers);
+                finish();
+            }
+        });
     }
 
     @Override

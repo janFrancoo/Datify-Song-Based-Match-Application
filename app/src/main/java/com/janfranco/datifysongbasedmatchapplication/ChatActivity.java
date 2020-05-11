@@ -504,6 +504,7 @@ public class ChatActivity extends AppCompatActivity {
                 intentToProfile.putExtra("mail", matchMail);
                 intentToProfile.putExtra("username", chatUsername);
                 intentToProfile.putExtra("avatarUrl", avatarUrl);
+                intentToProfile.putExtra("chatName", chatName);
                 startActivity(intentToProfile);
             }
         });

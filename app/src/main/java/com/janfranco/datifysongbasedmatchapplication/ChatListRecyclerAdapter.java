@@ -45,7 +45,10 @@ public class ChatListRecyclerAdapter extends RecyclerView.Adapter<ChatListRecycl
     public void onBindViewHolder(@NonNull PostHolder holder, int position) {
         Chat chat = chats.get(position);
         if (chat.getUsername1().equals(currentUsername)) {
-            if (!chat.getAvatar2Local().matches(""))
+            if (chat.getAvatar2().equals("default")) {
+                holder.avatar.setImageResource(R.drawable.defaultavatar);
+            }
+            else if (!chat.getAvatar2Local().matches(""))
                 Picasso.get().load(chat.getAvatar2Local()).into(holder.avatar, new Callback() {
                     @Override
                     public void onSuccess() { }
@@ -62,7 +65,10 @@ public class ChatListRecyclerAdapter extends RecyclerView.Adapter<ChatListRecycl
                 Picasso.get().load(chat.getAvatar2()).into(holder.avatar);
             holder.username.setText(chat.getUsername2());
         } else {
-            if (!chat.getAvatar1Local().matches(""))
+            if (chat.getAvatar1().matches("default")) {
+                holder.avatar.setImageResource(R.drawable.defaultavatar);
+            }
+            else if (!chat.getAvatar1Local().matches(""))
                 Picasso.get().load(chat.getAvatar1Local()).into(holder.avatar, new Callback() {
                     @Override
                     public void onSuccess() { }

@@ -8,10 +8,13 @@ public class User {
 
     private String eMail, username, avatarUrl, bio, gender, currTrack;
     private ArrayList<String> matches;
+    private ArrayList<Block> blockedMails;
     private int random;
     private long createDate;
 
-    public User() { }
+    public User() {
+        this.blockedMails = new ArrayList<>();
+    }
     public User(String eMail, String username, int random, long createDate) {
         this.eMail = eMail;
         this.username = username;
@@ -19,6 +22,7 @@ public class User {
         this.bio = "";
         this.gender = "";
         this.matches = new ArrayList<>();
+        this.blockedMails = new ArrayList<>();
         this.random = random;
         this.createDate = createDate;
         this.currTrack = "";
@@ -94,5 +98,13 @@ public class User {
 
     public void setCurrTrack(String currTrack) {
         this.currTrack = currTrack;
+    }
+
+    public ArrayList<Block> getBlockedMails() {
+        return blockedMails;
+    }
+
+    public void setBlockedMails(ArrayList<Block> blockedMails) {
+        this.blockedMails = blockedMails;
     }
 }

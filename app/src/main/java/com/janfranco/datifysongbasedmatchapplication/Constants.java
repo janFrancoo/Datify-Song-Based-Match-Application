@@ -63,7 +63,6 @@ class Constants {
     // Based on
     static int BASED_RANDOM = 0;
     static int BASED_SONG = 1;
-    static int BASED_PROFILE = 2;
     // Consider a new based => premium membership randomize
     // Consider a new based => premium membership randomize
     // Consider a new based => premium membership randomize

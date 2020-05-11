@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="#ffffff">
+
+    <TextView
+        android:id="@+id/popUpBlockInfo"
+        android:layout_width="wrap_content"
+        android:layout_margin="20dp"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:text="Please, enter a reason for blocking. This message is for yourself not for us." />
+
+    <EditText
+        android:id="@+id/popUpBlockInput"
+        android:layout_width="150dp"
+        android:layout_height="40dp"
+        android:layout_below="@+id/popUpBlockInfo"
+        android:layout_alignStart="@+id/popUpBlockInfo"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="50dp"
+        android:layout_toStartOf="@+id/popUpBlock"
+        android:background="@drawable/input"
+        android:ems="10"
+        android:inputType="textEmailAddress"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:textColor="@android:color/white" />
+
+    <Button
+        android:id="@+id/popUpBlock"
+        android:layout_width="100dp"
+        android:layout_height="40dp"
+        android:layout_below="@+id/popUpBlockInfo"
+        android:layout_alignEnd="@+id/popUpBlockInfo"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/login"
+        android:text="Block"
+        android:textColor="@android:color/white"
+        android:textSize="18sp" />
+
+
+</RelativeLayout>

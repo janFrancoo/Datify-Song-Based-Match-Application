@@ -164,8 +164,8 @@ public class HomeActivity extends AppCompatActivity {
                             }
 
                             @Override public void onLongItemClick(View view, int position) {
-                                Log.d("IMG_SAVE", chats.get(position).getAvatar1Local() + " " +
-                                        chats.get(position).getAvatar2Local());
+                                Log.d("AVATAR_URL", chats.get(position).getAvatar1() + " " +
+                                        chats.get(position).getAvatar2());
                             }
                         })
         );
@@ -417,8 +417,18 @@ public class HomeActivity extends AppCompatActivity {
                             assert user != null;
                             String userMail = user.geteMail();
                             String chatName = generateChatName(userMail);
+                            boolean createChat = false;
                             if (!userMail.equals(currentUser.getUser().geteMail())
-                                    && !chatNames.contains(generateChatName(userMail)))
+                                    && !chatNames.contains(generateChatName(userMail))) {
+                                createChat = true;
+                                for (int i = 0; i < currentUser.getUser().getBlockedMails().size(); i++) {
+                                    if (currentUser.getUser().getBlockedMails().get(i).getMail().equals(userMail)) {
+                                        createChat = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (createChat)
                                 createChat(chatName, user);
                             else {
                                 Log.d("RANDOM_CHAT", "Empty! Trying again!");
@@ -448,10 +458,20 @@ public class HomeActivity extends AppCompatActivity {
                             assert user != null;
                             String userMail = user.geteMail();
                             String chatName = generateChatName(userMail);
+                            boolean createChat = false;
                             if (!userMail.equals(currentUser.getUser().geteMail())
                                     && !chatNames.contains(chatName)) {
+                                createChat = true;
+                                for (int i = 0; i < currentUser.getUser().getBlockedMails().size(); i++) {
+                                    if (currentUser.getUser().getBlockedMails().get(i).getMail().equals(userMail)) {
+                                        createChat = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (createChat)
                                 createChat(chatName, user);
-                            } else {
+                            else {
                                 Log.d("RANDOM_CHAT", "Empty! Trying again!");
                                 getRandomUser();
                                 randomChatLimit--;
