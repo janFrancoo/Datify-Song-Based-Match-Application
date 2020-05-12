@@ -7,6 +7,7 @@ class ChatMessage {
     private String sender, message, imgUrl;
     private boolean transmitted, read;
     private long sendDate;
+    private int fruitId = 0;
 
     ChatMessage() { }
     ChatMessage(ChatMessage cm) {
@@ -16,6 +17,7 @@ class ChatMessage {
         this.transmitted = cm.transmitted;
         this.read = cm.read;
         this.sendDate = cm.sendDate;
+        this.fruitId = cm.fruitId;
     }
     ChatMessage(String sender, String message, long sendDate) {
         this.message = message;
@@ -48,6 +50,15 @@ class ChatMessage {
         this.imgUrl = imgUrl;
         this.transmitted = transmitted;
         this.read = read;
+    }
+    ChatMessage(String sender, long sendDate, int fruitId) {
+        this.message = "You got the meaning ;)";
+        this.transmitted = false;
+        this.read = false;
+        this.imgUrl = "";
+        this.sender = sender;
+        this.sendDate = sendDate;
+        this.fruitId = fruitId;
     }
 
     // I assume there will be no message at the same timestamp
@@ -104,6 +115,14 @@ class ChatMessage {
 
     public void setSendDate(long sendDate) {
         this.sendDate = sendDate;
+    }
+
+    public int getFruitId() {
+        return fruitId;
+    }
+
+    public void setFruitId(int fruitId) {
+        this.fruitId = fruitId;
     }
 
 }

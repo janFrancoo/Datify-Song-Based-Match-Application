@@ -64,10 +64,11 @@
 
     <Button
         android:id="@+id/profileBackBtn"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
+        android:layout_width="38dp"
+        android:layout_height="48dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
+        android:background="@drawable/gobackpurple"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 

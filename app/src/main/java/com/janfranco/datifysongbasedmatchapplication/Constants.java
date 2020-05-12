@@ -84,4 +84,8 @@ class Constants {
     static String DB_NAME_2 = "Track";
     static String TABLE_TRACKS = "tracks";
 
+    // Fruit
+    static int FRUIT_LEMON = 1;
+    static int FRUIT_WATERMELON = 2;
+
 }

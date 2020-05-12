@@ -42,10 +42,11 @@
 
         <Button
             android:id="@+id/userHeaderBackBtn"
-            android:layout_width="25dp"
-            android:layout_height="32dp"
+            android:layout_width="20dp"
+            android:layout_height="25dp"
             android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true" />
+            android:layout_centerVertical="true"
+            android:background="@drawable/gobackwhite" />
 
     </RelativeLayout>
 
@@ -65,15 +66,16 @@
         android:layout_height="45dp"
         android:text="Send"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/sendAttachmentBtn" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <Button
         android:id="@+id/sendAttachmentBtn"
         android:layout_width="45dp"
-        android:layout_height="45dp"
+        android:layout_height="0dp"
         android:background="@drawable/tick"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="@+id/messageInput"
+        app:layout_constraintTop_toTopOf="@+id/messageInput" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/messageList"
@@ -82,5 +84,14 @@
         app:layout_constraintBottom_toTopOf="@+id/messageInput"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/userHeader" />
+
+    <Button
+        android:id="@+id/sendFruitBtn"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:text="F"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/sendAttachmentBtn"
+        app:layout_constraintTop_toTopOf="@+id/messageInput" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

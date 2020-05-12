@@ -67,8 +67,10 @@ public class ProfileActivity extends AppCompatActivity {
         TextView profileUsername = findViewById(R.id.profileUsername);
         profileUsername.setText(username);
 
-        ImageView profileAvatar = findViewById(R.id.profileAvatar);
-        Picasso.get().load(avatarUrl).into(profileAvatar);
+        if (!avatarUrl.equals("default")) {
+            ImageView profileAvatar = findViewById(R.id.profileAvatar);
+            Picasso.get().load(avatarUrl).into(profileAvatar);
+        }
 
         Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
         profileUsername.setTypeface(metropolisLight);

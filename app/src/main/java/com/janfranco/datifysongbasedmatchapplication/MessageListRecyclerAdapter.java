@@ -74,7 +74,15 @@ public class MessageListRecyclerAdapter extends RecyclerView.Adapter<MessageList
                 message.getSendDate() * 1000L
         ).toString());
 
-        if (!message.getImgUrl().equals("")) {
+        if (message.getFruitId() != 0) {
+            if (message.getFruitId() == Constants.FRUIT_LEMON)
+                holder.image.setImageResource(R.drawable.lemon);
+            else if (message.getFruitId() == Constants.FRUIT_WATERMELON)
+                holder.image.setImageResource(R.drawable.watermelon);
+            holder.image.getLayoutParams().height = 500;
+            holder.image.getLayoutParams().width = 500;
+            holder.message.setText("");
+        } else if (!message.getImgUrl().equals("")) {
             if(message.getImgUrl().length() > 7 && message.getImgUrl().substring(0, 7).equals("content")) {
                 Uri uri = Uri.parse(message.getImgUrl());
                 try {

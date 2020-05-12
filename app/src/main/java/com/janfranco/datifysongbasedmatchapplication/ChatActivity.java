@@ -2,6 +2,7 @@ package com.janfranco.datifysongbasedmatchapplication;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -31,6 +32,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
@@ -94,7 +96,7 @@ public class ChatActivity extends AppCompatActivity {
         localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
                 Constants.TABLE_MESSAGES +
                 "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, " +
-                "read INT, imgUrl VARCHAR, PRIMARY KEY (message, sendDate))");
+                "read INT, imgUrl VARCHAR, fruitId INT, PRIMARY KEY (message, sendDate))");
 
         initialize();
 
@@ -178,7 +180,7 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (!avatarUrl.matches("default"))
-                    createPopUp(headerUsername.getText().toString(), avatarUrl);
+                    createPopUp(headerUsername.getText().toString(), avatarUrl, 0);
             }
         });
         updateHeader();
@@ -229,6 +231,36 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
 
+        Button sendFruitBtn = findViewById(R.id.sendFruitBtn);
+        sendFruitBtn.setOnClickListener(v -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            LayoutInflater inflater = ChatActivity.this.getLayoutInflater();
+            View dialogLayout = inflater.inflate(R.layout.popup_fruit, null);
+
+            final AlertDialog dialog = builder.create();
+            Objects.requireNonNull(dialog.getWindow()).setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+            dialog.setView(dialogLayout);
+            dialog.setCanceledOnTouchOutside(true);
+            dialog.setCancelable(true);
+
+            ImageView lemon = dialogLayout.findViewById(R.id.lemon);
+            lemon.setOnClickListener(v1 -> {
+                sendMessage(Constants.FRUIT_LEMON);
+                dialog.dismiss();
+            });
+            ImageView watermelon = dialogLayout.findViewById(R.id.watermelon);
+            watermelon.setOnClickListener(v1 -> {
+                sendMessage(Constants.FRUIT_WATERMELON);
+                dialog.dismiss();
+            });
+
+            dialog.show();
+            dialog.getWindow().setLayout(this.getWindow().getDecorView().getWidth(),
+                    this.getWindow().getDecorView().getHeight() / 3);
+            dialog.getWindow().setGravity(Gravity.BOTTOM);
+        });
+
         messageList.addOnItemTouchListener(
                 new RecyclerItemClickListener(getApplicationContext(), messageList,
                         new RecyclerItemClickListener.OnItemClickListener() {
@@ -236,7 +268,8 @@ public class ChatActivity extends AppCompatActivity {
                             @Override
                             public void onItemClick(View view, int position) {
                                 createPopUp(messages.get(position).getMessage(),
-                                        messages.get(position).getImgUrl());
+                                        messages.get(position).getImgUrl(),
+                                        messages.get(position).getFruitId());
                             }
 
                             @Override
@@ -269,11 +302,13 @@ public class ChatActivity extends AppCompatActivity {
         int sendDate = cursor.getColumnIndex("sendDate");
         int read = cursor.getColumnIndex("read");
         int imageUrl = cursor.getColumnIndex("imgUrl");
+        int fruitIdC = cursor.getColumnIndex("fruitId");
 
         while (cursor.moveToNext()) {
             boolean setRead;
             setRead = cursor.getInt(read) == 1;
             String img = cursor.getString(imageUrl);
+            int fruitId = cursor.getInt(fruitIdC);
 
             if (chatName.equals(cursor.getString(cName))) {
                 ChatMessage cm;
@@ -285,6 +320,12 @@ public class ChatActivity extends AppCompatActivity {
                             cursor.getLong(sendDate),
                             true,
                             setRead
+                    );
+                } else if (fruitId != 0) {
+                    cm = new ChatMessage(
+                            cursor.getString(sender),
+                            cursor.getLong(sendDate),
+                            fruitId
                     );
                 } else {
                     cm = new ChatMessage(
@@ -472,6 +513,41 @@ public class ChatActivity extends AppCompatActivity {
                 });
     }
 
+    private void sendMessage(int fruitId) {
+        long createDate = Timestamp.now().getSeconds();
+        ChatMessage cm;
+
+        cm = new ChatMessage(
+                currentUser.getUser().getUsername(),
+                createDate,
+                fruitId
+        );
+        messages.add(cm);
+
+        final ChatMessage transmittedCm = new ChatMessage(cm);
+        transmittedCm.setTransmitted(true);
+
+        db.collection("chat").document(chatName).collection("message")
+                .add(transmittedCm)
+                .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                    @Override
+                    public void onSuccess(DocumentReference documentReference) {
+                        int idx = messages.indexOf(transmittedCm);
+                        messages.get(idx).setTransmitted(true);
+                        messageListAdapter.notifyDataSetChanged();
+                        writeToLocal(transmittedCm);
+                        updateChat(transmittedCm);
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(ChatActivity.this, e.getLocalizedMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
     private void updateChat(ChatMessage cm) {
         db.collection("chat").document(chatName)
                 .update("lastMessage", cm.getMessage(),
@@ -480,8 +556,8 @@ public class ChatActivity extends AppCompatActivity {
 
     private void writeToLocal(ChatMessage cm) {
         String query = "REPLACE INTO " + Constants.TABLE_MESSAGES +
-                "(chatName, sender, message, sendDate, read, imgUrl) VALUES" +
-                "(?, ?, ?, ?, " + (cm.isRead() ? 1 : 0) + ", ?)";
+                "(chatName, sender, message, sendDate, read, imgUrl, fruitId) VALUES" +
+                "(?, ?, ?, ?, " + (cm.isRead() ? 1 : 0) + ", ?, " + cm.getFruitId() + ")";
 
         SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
         sqLiteStatement.bindString(1, chatName);
@@ -510,7 +586,7 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    private void createPopUp(String context, String imageUrl) {
+    private void createPopUp(String context, String imageUrl, int fruitId) {
         LayoutInflater inflater = (LayoutInflater)
                 getSystemService(LAYOUT_INFLATER_SERVICE);
         assert inflater != null;
@@ -520,7 +596,12 @@ public class ChatActivity extends AppCompatActivity {
         ImageView avatar = popupView.findViewById(R.id.popUpAvatar);
         TextView msg = popupView.findViewById(R.id.popUpContext);
 
-        if (!imageUrl.equals("")) {
+        if (fruitId != 0) {
+            if (fruitId == Constants.FRUIT_LEMON)
+                avatar.setImageResource(R.drawable.lemon);
+            else if (fruitId == Constants.FRUIT_WATERMELON)
+                avatar.setImageResource(R.drawable.watermelon);
+        } else if (!imageUrl.equals("")) {
             if (imageUrl.length() > 7 && imageUrl.substring(0, 7).equals("content")) {
                 Uri uri = Uri.parse(imageUrl);
                 try {
