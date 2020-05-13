@@ -25,6 +25,7 @@ import android.widget.Toast;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.squareup.picasso.Picasso;
 
@@ -115,7 +116,10 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void getTracksFromCloud() {
-        db.collection("track").document(mail).collection("list").get()
+        db.collection("track").document(mail).collection("list")
+                .orderBy("addDate", Query.Direction.DESCENDING)
+                .limit(10)
+                .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     for (QueryDocumentSnapshot snapshot : queryDocumentSnapshots) {
                         Song song = snapshot.toObject(Song.class);

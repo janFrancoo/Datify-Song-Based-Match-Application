@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -19,6 +20,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -26,8 +28,11 @@ import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.PopupMenu;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FieldPath;
@@ -98,6 +103,7 @@ public class HomeActivity extends AppCompatActivity {
         // localDb.close();
     }
 
+    @SuppressLint("SetTextI18n")
     private void initialize() {
         chats = new ArrayList<>();
         chatNames = new ArrayList<>();
@@ -107,17 +113,34 @@ public class HomeActivity extends AppCompatActivity {
 
         imageSavePermission();
 
-        Button tempSettings = findViewById(R.id.tempSettingsBtn);
-        tempSettings.setOnClickListener(v -> {
-            Intent intentToSettings = new Intent(HomeActivity.this, SettingsActivity.class);
-            startActivity(intentToSettings);
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+
+        Button popMenu = findViewById(R.id.popMenu);
+        popMenu.setOnClickListener(v -> {
+            PopupMenu popup = new PopupMenu(this, popMenu);
+            popup.getMenuInflater().inflate(R.menu.home_act_pop_menu, popup.getMenu());
+            popup.setOnMenuItemClickListener(item -> {
+                if (item.getTitle().equals("Random Match!"))
+                    getRandomUser();
+                else if (item.getTitle().equals("Sign Out")) {
+                    FirebaseAuth.getInstance().signOut();
+                    Intent intentToLoginAct = new Intent(this, LoginActivity.class);
+                    startActivity(intentToLoginAct);
+                }
+                return true;
+            });
+
+            popup.show();
         });
 
-        Button tempSignOut = findViewById(R.id.tempSignout);
-        tempSignOut.setOnClickListener(v -> FirebaseAuth.getInstance().signOut());
-
-        Button tempRandomChat = findViewById(R.id.tempRandomChat);
-        tempRandomChat.setOnClickListener(v -> getRandomUser());
+        TextView userDetail = findViewById(R.id.userDetailTV);
+        if (currentUser.getUser().getBio().equals(""))
+            userDetail.setText("Welcome, " + currentUser.getUser().getUsername() + " " +
+                    new String(Character.toChars(0x1F525)));
+        else
+            userDetail.setText(currentUser.getUser().getBio() + "\nWelcome " +
+                currentUser.getUser().getUsername() + " " + new String(Character.toChars(0x1F525)));
+        userDetail.setTypeface(metropolisLight);
 
         RecyclerView recyclerView = findViewById(R.id.chatList);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -170,10 +193,19 @@ public class HomeActivity extends AppCompatActivity {
                         })
         );
 
-        Button spotifyBtn = findViewById(R.id.tempSpotify);
-        spotifyBtn.setOnClickListener(v -> {
-            Intent intent = new Intent(HomeActivity.this, SpotifyActivity.class);
-            startActivity(intent);
+        BottomNavigationView navBottom = findViewById(R.id.homeBottomNav);
+        navBottom.setSelectedItemId(R.id.page_home);
+        navBottom.setOnNavigationItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.page_settings) {
+                Intent intentToMatchAct = new Intent(this, SettingsActivity.class);
+                startActivity(intentToMatchAct);
+            }
+            if (item.getItemId() == R.id.page_match) {
+                Intent intentToSpotify = new Intent(this, SpotifyActivity.class);
+                startActivity(intentToSpotify);
+                finish();
+            }
+            return false;
         });
     }
 

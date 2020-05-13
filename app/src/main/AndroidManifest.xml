@@ -14,7 +14,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:windowSoftInputMode="adjustResize">
-        <activity android:name=".BlockedUsersActivity"></activity>
+        <activity android:name=".MatchActivity"></activity>
+        <activity android:name=".BlockedUsersActivity" />
         <activity android:name=".ProfileActivity" />
         <activity android:name=".SpotifyActivity" />
         <activity android:name=".ChatActivity" />

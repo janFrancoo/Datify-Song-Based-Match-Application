@@ -10,13 +10,16 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -25,6 +28,7 @@ import com.spotify.android.appremote.api.ConnectionParams;
 import com.spotify.android.appremote.api.Connector;
 import com.spotify.android.appremote.api.SpotifyAppRemote;
 import com.spotify.protocol.types.Track;
+import com.squareup.picasso.Picasso;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -43,12 +47,13 @@ public class SpotifyActivity extends AppCompatActivity {
 
     private TextView trackName;
     private TrackListRecyclerAdapter adapter;
+    private ImageView trackCover;
 
     // Todo: Add link to spotify from song list
     // Todo: Listen while not viewing the app
     // Todo: Update currTrack field on cloud while not listening and prevent matching
     //                                                              based on previous songs
-    // Todo: Get USERS via currTrack field not just ONE user and match by random idx
+    // Todo: Get USERS via currTrack field not just ONE user and let user choose
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,9 +94,28 @@ public class SpotifyActivity extends AppCompatActivity {
     }
 
     private void init() {
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
         trackName = findViewById(R.id.trackName);
+        trackName.setTypeface(metropolisLight);
         Button matchSongBtn = findViewById(R.id.matchSongBtn);
         matchSongBtn.setOnClickListener(v -> matchBySong());
+
+        BottomNavigationView navBottom = findViewById(R.id.spotifyBottomNav);
+        navBottom.setSelectedItemId(R.id.page_match);
+        navBottom.setOnNavigationItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.page_settings) {
+                Intent intentToMatchAct = new Intent(this, SettingsActivity.class);
+                startActivity(intentToMatchAct);
+            }
+            if (item.getItemId() == R.id.page_home) {
+                Intent intentToHome = new Intent(this, HomeActivity.class);
+                startActivity(intentToHome);
+                finish();
+            }
+            return false;
+        });
+
+        trackCover = findViewById(R.id.trackCover);
     }
 
     @Override
@@ -151,8 +175,11 @@ public class SpotifyActivity extends AppCompatActivity {
                 .setEventCallback(playerState -> {
                     currTrack = playerState.track;
                     if (currTrack != null) {
-                        trackName.setText("You are listening: " + currTrack.name +
+                        trackName.setText("You are listening:\n" + currTrack.name +
                                 " by " + currTrack.artist.name);
+                        Picasso.get().load("https://i.scdn.co/image/" + currTrack.imageUri.toString()).into(trackCover);
+                        mSpotifyAppRemote.getImagesApi().getImage(currTrack.imageUri)
+                                .setResultCallback(bitmap -> trackCover.setImageBitmap(bitmap));
                         updateCurrentTrack();
                     }
                 });

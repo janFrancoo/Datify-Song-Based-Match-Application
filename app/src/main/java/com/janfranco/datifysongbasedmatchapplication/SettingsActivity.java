@@ -40,6 +40,7 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
@@ -164,13 +165,30 @@ public class SettingsActivity extends AppCompatActivity {
                 finish();
             }
         });
+
+        BottomNavigationView navBottom = findViewById(R.id.settingsBottomNav);
+        navBottom.setSelectedItemId(R.id.page_settings);
+        navBottom.setOnNavigationItemSelectedListener(item -> {
+            if (item.getItemId() == R.id.page_home) {
+                Intent intentToHome = new Intent(this, HomeActivity.class);
+                startActivity(intentToHome);
+                finish();
+            }
+            if (item.getItemId() == R.id.page_match) {
+                Intent intentToSpotify = new Intent(this, SpotifyActivity.class);
+                startActivity(intentToSpotify);
+                finish();
+            }
+            return false;
+        });
     }
 
+    /*
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         if (!fromRegister) {
             MenuInflater menuInflater = getMenuInflater();
-            menuInflater.inflate(R.menu.settings_menu, menu);
+            menuInflater.inflate(R.menu.home_act_pop_menu, menu);
         }
         return super.onCreateOptionsMenu(menu);
     }
@@ -186,6 +204,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+    */
 
     private void selectImage() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) !=
