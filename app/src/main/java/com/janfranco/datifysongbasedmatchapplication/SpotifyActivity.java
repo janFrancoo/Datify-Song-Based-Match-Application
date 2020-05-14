@@ -1,5 +1,6 @@
 package com.janfranco.datifysongbasedmatchapplication;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -11,9 +12,13 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -53,7 +58,6 @@ public class SpotifyActivity extends AppCompatActivity {
     // Todo: Listen while not viewing the app
     // Todo: Update currTrack field on cloud while not listening and prevent matching
     //                                                              based on previous songs
-    // Todo: Get USERS via currTrack field not just ONE user and let user choose
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +70,7 @@ public class SpotifyActivity extends AppCompatActivity {
         localDb = openOrCreateDatabase(Constants.DB_NAME_2, Context.MODE_PRIVATE, null);
         localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
                 Constants.TABLE_TRACKS +
-                "(userMail VARCHAR, trackName VARCHAR, artistName VARCHAR, createDate LONG, " +
+                "(userMail VARCHAR, trackName VARCHAR, artistName VARCHAR, uri VARCHAR, createDate LONG, " +
                 "PRIMARY KEY (userMail, createDate))");
 
         songs = new ArrayList<>();
@@ -78,7 +82,14 @@ public class SpotifyActivity extends AppCompatActivity {
         songList.addOnItemTouchListener(
                 new RecyclerItemClickListener(getApplicationContext(), songList,
                         new RecyclerItemClickListener.OnItemClickListener() {
-                            @Override public void onItemClick(View view, int position) { }
+                            @Override public void onItemClick(View view, int position) {
+                                /*Intent intent = new Intent(Intent.ACTION_VIEW);
+                                intent.setData(Uri.parse(songs.get(position).getUri()));
+                                intent.putExtra(Intent.EXTRA_REFERRER,
+                                        Uri.parse("android-app://" + getPackageName()));
+                                startActivity(intent);*/
+                                mSpotifyAppRemote.getPlayerApi().play(songs.get(position).getUri());
+                            }
 
                             @Override public void onLongItemClick(View view, int position) {
                                 removeFromCloud(songs.get(position));
@@ -98,7 +109,7 @@ public class SpotifyActivity extends AppCompatActivity {
         trackName = findViewById(R.id.trackName);
         trackName.setTypeface(metropolisLight);
         Button matchSongBtn = findViewById(R.id.matchSongBtn);
-        matchSongBtn.setOnClickListener(v -> matchBySong());
+        matchSongBtn.setOnClickListener(v -> getUsersBySong());
 
         BottomNavigationView navBottom = findViewById(R.id.spotifyBottomNav);
         navBottom.setSelectedItemId(R.id.page_match);
@@ -116,6 +127,13 @@ public class SpotifyActivity extends AppCompatActivity {
         });
 
         trackCover = findViewById(R.id.trackCover);
+        trackCover.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(Uri.parse(currTrack.uri));
+            intent.putExtra(Intent.EXTRA_REFERRER,
+                    Uri.parse("android-app://" + getPackageName()));
+            startActivity(intent);
+        });
     }
 
     @Override
@@ -149,6 +167,7 @@ public class SpotifyActivity extends AppCompatActivity {
         int userMail = cursor.getColumnIndex("userMail");
         int trackName = cursor.getColumnIndex("trackName");
         int artistName = cursor.getColumnIndex("artistName");
+        int uri = cursor.getColumnIndex("uri");
         int createDate = cursor.getColumnIndex("createDate");
 
         while (cursor.moveToNext()) {
@@ -157,6 +176,7 @@ public class SpotifyActivity extends AppCompatActivity {
                         currentUser.getUser().geteMail(),
                         cursor.getString(trackName),
                         cursor.getString(artistName),
+                        cursor.getString(uri),
                         cursor.getLong(createDate)
                 );
                 songs.add(song);
@@ -204,6 +224,7 @@ public class SpotifyActivity extends AppCompatActivity {
                 currentUser.getUser().geteMail(),
                 currTrack.name,
                 currTrack.artist.name,
+                currTrack.uri,
                 addDate
         );
 
@@ -228,7 +249,7 @@ public class SpotifyActivity extends AppCompatActivity {
 
     private void writeToLocalDb(Song song) {
         String query = "REPLACE INTO " + Constants.TABLE_TRACKS + " (userMail, trackName, " +
-                "artistName, createDate) VALUES (?, ?, ?, ?)";
+                "artistName, uri, createDate) VALUES (?, ?, ?, ?, ?)";
 
         SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
 
@@ -236,7 +257,8 @@ public class SpotifyActivity extends AppCompatActivity {
         sqLiteStatement.bindString(1, currentUser.getUser().geteMail());
         sqLiteStatement.bindString(2, song.getTrackName());
         sqLiteStatement.bindString(3, song.getArtistName());
-        sqLiteStatement.bindLong(4, song.getAddDate());
+        sqLiteStatement.bindString(4, song.getUri());
+        sqLiteStatement.bindLong(5, song.getAddDate());
 
         try {
             sqLiteStatement.execute();
@@ -266,20 +288,72 @@ public class SpotifyActivity extends AppCompatActivity {
         localDb.execSQL(query);
     }
 
-    private void matchBySong() {
+    private void getUsersBySong() {
         if (currTrack == null)
             return;
 
+        Track safeTrack = currTrack;
+        ArrayList<User> userList = new ArrayList<>();
+
         db.collection("userDetail")
-                .whereEqualTo("currTrack", currTrack.artist.name + "___" + currTrack.name)
+                .whereEqualTo("currTrack", safeTrack.artist.name + "___" + safeTrack.name)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     for (QueryDocumentSnapshot snapshot : queryDocumentSnapshots) {
                         User user = snapshot.toObject(User.class);
                         if (!user.geteMail().matches(currentUser.getUser().geteMail()))
-                            createChat(currTrack, user);
+                            userList.add(user);
                     }
+                    if (userList.size() != 0)
+                        selectUser(safeTrack, userList);
+                    else
+                        Toast.makeText(this, "No users have found =(",
+                                Toast.LENGTH_LONG).show();
                 });
+    }
+
+    private void selectUser(Track track, ArrayList<User> users) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        @SuppressLint("InflateParams") View dialogLayout = inflater.inflate(R.layout.popup_select_user, null);
+
+        final AlertDialog dialog = builder.create();
+        Objects.requireNonNull(dialog.getWindow()).setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        dialog.setView(dialogLayout);
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.setCancelable(true);
+
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
+        TextView infoLabel = dialogLayout.findViewById(R.id.userSelectListInfoLabel);
+        infoLabel.setTypeface(metropolisLight);
+
+        RecyclerView userList = dialogLayout.findViewById(R.id.userSelectList);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this,
+                LinearLayoutManager.HORIZONTAL, false);
+        userList.setLayoutManager(layoutManager);
+        UserSelectListRecyclerAdapter adapter = new UserSelectListRecyclerAdapter(
+                getApplicationContext(), users);
+        userList.setAdapter(adapter);
+
+        userList.addOnItemTouchListener(
+                new RecyclerItemClickListener(getApplicationContext(), userList,
+                        new RecyclerItemClickListener.OnItemClickListener() {
+
+                            @Override
+                            public void onItemClick(View view, int position) {
+                                createChat(track, users.get(position));
+                            }
+
+                            @Override
+                            public void onLongItemClick(View view, int position) { }
+                        })
+        );
+
+        dialog.show();
+        dialog.getWindow().setLayout(WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT);
+        dialog.getWindow().setGravity(Gravity.CENTER);
     }
 
     private String generateChatName(String match) {

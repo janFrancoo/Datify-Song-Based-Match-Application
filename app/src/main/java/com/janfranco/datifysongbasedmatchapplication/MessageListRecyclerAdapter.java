@@ -8,7 +8,6 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.text.format.DateFormat;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;

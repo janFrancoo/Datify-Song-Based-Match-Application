@@ -4,14 +4,15 @@ import androidx.annotation.Nullable;
 
 public class Song {
 
-    private String userMail, trackName, artistName;
+    private String userMail, trackName, artistName, uri;
     private long addDate;
 
     public Song() { }
-    public Song(String userMail, String trackName, String artistName, long addDate) {
+    public Song(String userMail, String trackName, String artistName, String uri, long addDate) {
         this.userMail = userMail;
         this.trackName = trackName;
         this.artistName = artistName;
+        this.uri = uri;
         this.addDate = addDate;
     }
 
@@ -45,6 +46,14 @@ public class Song {
 
     public void setArtistName(String artistName) {
         this.artistName = artistName;
+    }
+
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
     }
 
     public long getAddDate() {

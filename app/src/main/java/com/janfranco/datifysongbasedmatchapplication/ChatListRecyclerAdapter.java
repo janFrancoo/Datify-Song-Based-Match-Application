@@ -105,9 +105,9 @@ public class ChatListRecyclerAdapter extends RecyclerView.Adapter<ChatListRecycl
         PostHolder(@NonNull View itemView) {
             super(itemView);
 
-            avatar = itemView.findViewById(R.id.chatListAvatar);
-            username = itemView.findViewById(R.id.chatListUsername);
-            message = itemView.findViewById(R.id.chatListMessage);
+            avatar = itemView.findViewById(R.id.userSelectListAvatar);
+            username = itemView.findViewById(R.id.userSelectListUsername);
+            message = itemView.findViewById(R.id.userSelectListBio);
             date = itemView.findViewById(R.id.chatListDate);
 
             message.setTypeface(metropolisLight);

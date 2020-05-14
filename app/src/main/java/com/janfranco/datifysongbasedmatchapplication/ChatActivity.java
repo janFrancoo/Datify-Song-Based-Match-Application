@@ -460,6 +460,7 @@ public class ChatActivity extends AppCompatActivity {
                 createDate
         );
         messages.add(cm);
+        messageList.scrollToPosition(messages.size() - 1);
 
         final ChatMessage transmittedCm = new ChatMessage(cm);
         transmittedCm.setTransmitted(true);
@@ -523,6 +524,7 @@ public class ChatActivity extends AppCompatActivity {
                 fruitId
         );
         messages.add(cm);
+        messageList.scrollToPosition(messages.size() - 1);
 
         final ChatMessage transmittedCm = new ChatMessage(cm);
         transmittedCm.setTransmitted(true);
