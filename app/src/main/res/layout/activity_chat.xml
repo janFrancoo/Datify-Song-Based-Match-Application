@@ -34,16 +34,26 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_toEndOf="@+id/userHeaderAvatar"
-            android:layout_centerVertical="true"
             android:layout_marginStart="25dp"
             android:text="username"
             android:textColor="@android:color/white"
             android:textSize="20sp"/>
 
+        <TextView
+            android:id="@+id/userHeaderCurrTrack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@+id/userHeaderAvatar"
+            android:layout_below="@+id/userHeaderUsername"
+            android:text="Unknown - Unknown"
+            android:textColor="@android:color/white"
+            android:layout_marginStart="25dp"
+            android:textSize="14sp" />
+
         <Button
             android:id="@+id/userHeaderBackBtn"
-            android:layout_width="20dp"
-            android:layout_height="25dp"
+            android:layout_width="18dp"
+            android:layout_height="20dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:background="@drawable/gobackwhite" />
@@ -92,6 +102,15 @@
         android:text="F"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/sendAttachmentBtn"
+        app:layout_constraintTop_toTopOf="@+id/messageInput" />
+
+    <Button
+        android:id="@+id/listenSyncBtn"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:text="S"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/sendFruitBtn"
         app:layout_constraintTop_toTopOf="@+id/messageInput" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

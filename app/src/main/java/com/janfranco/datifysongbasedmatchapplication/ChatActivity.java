@@ -49,6 +49,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
@@ -82,10 +83,10 @@ public class ChatActivity extends AppCompatActivity {
     private ArrayList<ChatMessage> messages;
     private MessageListRecyclerAdapter messageListAdapter;
     private RecyclerView messageList;
-    private TextView headerUsername;
+    private TextView headerUsername, headerCurrTrack;
     private ImageView headerAvatar;
     private SQLiteDatabase localDb;
-    private ListenerRegistration registration;
+    private ListenerRegistration registration, headerCurrTrackListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,10 +98,10 @@ public class ChatActivity extends AppCompatActivity {
                 Constants.TABLE_MESSAGES +
                 "(chatName VARCHAR, sender VARCHAR, message VARCHAR, sendDate LONG, " +
                 "read INT, imgUrl VARCHAR, fruitId INT, PRIMARY KEY (message, sendDate))");
+        db = FirebaseFirestore.getInstance();
 
         initialize();
 
-        db = FirebaseFirestore.getInstance();
         fStorage = FirebaseStorage.getInstance();
         currentUser = CurrentUser.getInstance();
         currentUser.setCurrentChat(chatName);
@@ -128,6 +129,9 @@ public class ChatActivity extends AppCompatActivity {
         if (registration != null)
             registration.remove();
 
+        if (headerCurrTrackListener != null)
+            headerCurrTrackListener.remove();
+
         // localDb.close();
 
         currentUser.setCurrentChat("");
@@ -139,6 +143,8 @@ public class ChatActivity extends AppCompatActivity {
         messageInput = findViewById(R.id.messageInput);
         sendMessageBtn = findViewById(R.id.sendMessageBtn);
         sendMessageBtn.setEnabled(false);
+
+        Typeface metropolisLight = Typeface.createFromAsset(getAssets(), "fonts/Metropolis-Light.otf");
 
         matchMail = getIntent().getStringExtra("matchMail");
         avatarUrl = getIntent().getStringExtra("chatAvatar");
@@ -167,6 +173,9 @@ public class ChatActivity extends AppCompatActivity {
         messageList.setLayoutManager(new LinearLayoutManager(this));
 
         headerUsername = findViewById(R.id.userHeaderUsername);
+        headerUsername.setTypeface(metropolisLight);
+        headerCurrTrack = findViewById(R.id.userHeaderCurrTrack);
+        headerCurrTrack.setTypeface(metropolisLight);
         Button headerGoBackBtn = findViewById(R.id.userHeaderBackBtn);
         headerGoBackBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -289,6 +298,11 @@ public class ChatActivity extends AppCompatActivity {
                     messageList.scrollBy(0, oldBottom - bottom);
                 }
             }
+        });
+
+        Button listenSyncBtn = findViewById(R.id.listenSyncBtn);
+        listenSyncBtn.setOnClickListener(v -> {
+            listenSync();
         });
     }
 
@@ -570,10 +584,22 @@ public class ChatActivity extends AppCompatActivity {
         sqLiteStatement.execute();
     }
 
+    @SuppressLint("SetTextI18n")
     private void updateHeader() {
         headerUsername.setText(chatUsername);
         if (!avatarUrl.equals("default"))
             Picasso.get().load(avatarUrl).into(headerAvatar);
+
+        db.collection("userDetail").document(matchMail)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+           User user = snapshot.toObject(User.class);
+           if (user != null) {
+               String[] currTrack = user.getCurrTrack().split("___");
+               headerCurrTrack.setText(currTrack[0] + " - " + currTrack[1]);
+               headerCurrTrackListen();
+           }
+        });
 
         headerUsername.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -586,6 +612,20 @@ public class ChatActivity extends AppCompatActivity {
                 startActivity(intentToProfile);
             }
         });
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void headerCurrTrackListen() {
+        headerCurrTrackListener = db.collection("userDetail")
+                .document(matchMail).addSnapshotListener((snapshot, e) -> {
+                    if (snapshot != null) {
+                        User user = snapshot.toObject(User.class);
+                        if (user != null) {
+                            String[] currTrack = user.getCurrTrack().split("___");
+                            headerCurrTrack.setText(currTrack[0] + " - " + currTrack[1]);
+                        }
+                    }
+                });
     }
 
     private void createPopUp(String context, String imageUrl, int fruitId) {
@@ -801,4 +841,9 @@ public class ChatActivity extends AppCompatActivity {
 
         return filePath;*/
     }
+
+    private void listenSync() {
+
+    }
+
 }

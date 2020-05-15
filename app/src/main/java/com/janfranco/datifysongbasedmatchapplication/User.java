@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 public class User {
 
-    private String eMail, username, avatarUrl, bio, gender, currTrack;
+    private String eMail, username, avatarUrl, bio, gender, currTrack, currTrackUri;
     private ArrayList<String> matches;
     private ArrayList<Block> blockedMails;
     private int random;
@@ -26,6 +26,7 @@ public class User {
         this.random = random;
         this.createDate = createDate;
         this.currTrack = "";
+        this.currTrackUri = "";
     }
 
     public String geteMail() {
@@ -107,4 +108,13 @@ public class User {
     public void setBlockedMails(ArrayList<Block> blockedMails) {
         this.blockedMails = blockedMails;
     }
+
+    public String getCurrTrackUri() {
+        return currTrackUri;
+    }
+
+    public void setCurrTrackUri(String currTrackUri) {
+        this.currTrackUri = currTrackUri;
+    }
+
 }
