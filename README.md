@@ -6,5 +6,4 @@
 <br><br>
 ### Next :stuck_out_tongue_winking_eye:
 ---
-* Listen sync
 * Track list based recommendation

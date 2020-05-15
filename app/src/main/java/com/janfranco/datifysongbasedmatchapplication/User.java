@@ -11,6 +11,7 @@ public class User {
     private ArrayList<Block> blockedMails;
     private int random;
     private long createDate;
+    private boolean currTrackIntervention;
 
     public User() {
         this.blockedMails = new ArrayList<>();
@@ -27,6 +28,7 @@ public class User {
         this.createDate = createDate;
         this.currTrack = "";
         this.currTrackUri = "";
+        this.currTrackIntervention = false;
     }
 
     public String geteMail() {
@@ -115,6 +117,14 @@ public class User {
 
     public void setCurrTrackUri(String currTrackUri) {
         this.currTrackUri = currTrackUri;
+    }
+
+    public boolean isCurrTrackIntervention() {
+        return currTrackIntervention;
+    }
+
+    public void setCurrTrackIntervention(boolean currTrackIntervention) {
+        this.currTrackIntervention = currTrackIntervention;
     }
 
 }

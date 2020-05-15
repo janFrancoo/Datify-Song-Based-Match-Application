@@ -49,7 +49,6 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
@@ -60,6 +59,9 @@ import com.google.firebase.firestore.WriteBatch;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.spotify.android.appremote.api.ConnectionParams;
+import com.spotify.android.appremote.api.Connector;
+import com.spotify.android.appremote.api.SpotifyAppRemote;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
@@ -86,7 +88,11 @@ public class ChatActivity extends AppCompatActivity {
     private TextView headerUsername, headerCurrTrack;
     private ImageView headerAvatar;
     private SQLiteDatabase localDb;
-    private ListenerRegistration registration, headerCurrTrackListener;
+    private ListenerRegistration registration, headerCurrTrackListener, selfCurrTrackListener;
+
+    private static final String CLIENT_ID = "fb4680b5b1384bcaaf3febd991797ecc";
+    private static final String REDIRECT_URI = "com.janfranco.datifysongbasedmatchapplication://callback";
+    private SpotifyAppRemote mSpotifyAppRemote;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,6 +124,25 @@ public class ChatActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
+        ConnectionParams connectionParams =
+                new ConnectionParams.Builder(CLIENT_ID)
+                        .setRedirectUri(REDIRECT_URI)
+                        .showAuthView(true)
+                        .build();
+
+        SpotifyAppRemote.connect(this, connectionParams,
+                new Connector.ConnectionListener() {
+                    public void onConnected(SpotifyAppRemote spotifyAppRemote) {
+                        mSpotifyAppRemote = spotifyAppRemote;
+                        getListenSync();
+                    }
+
+                    public void onFailure(Throwable throwable) {
+                        Toast.makeText(ChatActivity.this, "Spotify connection error!",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
+
         messageListAdapter.notifyDataSetChanged();
         messageList.scrollToPosition(messages.size() - 1);
     }
@@ -131,6 +156,9 @@ public class ChatActivity extends AppCompatActivity {
 
         if (headerCurrTrackListener != null)
             headerCurrTrackListener.remove();
+
+        if (selfCurrTrackListener != null)
+            selfCurrTrackListener.remove();
 
         // localDb.close();
 
@@ -596,7 +624,8 @@ public class ChatActivity extends AppCompatActivity {
            User user = snapshot.toObject(User.class);
            if (user != null) {
                String[] currTrack = user.getCurrTrack().split("___");
-               headerCurrTrack.setText(currTrack[0] + " - " + currTrack[1]);
+               headerCurrTrack.setText(currTrack[0] + " - " + currTrack[1] + " " +
+                       new String(Character.toChars(0x1F3B6)));
                headerCurrTrackListen();
            }
         });
@@ -622,7 +651,8 @@ public class ChatActivity extends AppCompatActivity {
                         User user = snapshot.toObject(User.class);
                         if (user != null) {
                             String[] currTrack = user.getCurrTrack().split("___");
-                            headerCurrTrack.setText(currTrack[0] + " - " + currTrack[1]);
+                            headerCurrTrack.setText(currTrack[0] + " - " + currTrack[1] + " " +
+                                    new String(Character.toChars(0x1F3B6)));
                         }
                     }
                 });
@@ -843,7 +873,40 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void listenSync() {
+        String[] currTrack = currentUser.getUser().getCurrTrack().split(" - ");
 
+        db.collection("userDetail").document(matchMail).update(
+                "currTrack",
+                currTrack[0] + "___" + currTrack[1],
+                "currTrackUri",
+                currentUser.getUser().getCurrTrackUri(),
+                "currTrackIntervention",
+                true
+        ).addOnSuccessListener(aVoid -> {
+            mSpotifyAppRemote.getPlayerApi().play(currentUser.getUser().getCurrTrackUri());
+        });
+    }
+
+    private void getListenSync() {
+        selfCurrTrackListener = db.collection("userDetail")
+                .document(currentUser.getUser().geteMail())
+                .addSnapshotListener((snapshot, e) -> {
+                    if (snapshot != null) {
+                        User user = snapshot.toObject(User.class);
+                        if (user != null) {
+                            if (!currentUser.getUser().getCurrTrack().equals(user.getCurrTrack())
+                                    && user.isCurrTrackIntervention()) {
+                                mSpotifyAppRemote.getPlayerApi().play(user.getCurrTrackUri());
+                                user.setCurrTrackIntervention(false);
+                                currentUser.setUser(user);
+                                db.collection("userDetail").document(currentUser.getUser().geteMail()).update(
+                                        "currTrackIntervention",
+                                        false
+                                );
+                            }
+                        }
+                    }
+                });
     }
 
 }

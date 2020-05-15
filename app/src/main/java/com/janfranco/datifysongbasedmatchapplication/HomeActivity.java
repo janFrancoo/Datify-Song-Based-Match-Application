@@ -41,6 +41,10 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.spotify.android.appremote.api.ConnectionParams;
+import com.spotify.android.appremote.api.Connector;
+import com.spotify.android.appremote.api.SpotifyAppRemote;
+import com.spotify.protocol.types.Track;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
@@ -49,6 +53,11 @@ import java.util.Objects;
 import java.util.Random;
 
 public class HomeActivity extends AppCompatActivity {
+
+    private Track currTrack;
+    private static final String CLIENT_ID = "fb4680b5b1384bcaaf3febd991797ecc";
+    private static final String REDIRECT_URI = "com.janfranco.datifysongbasedmatchapplication://callback";
+    private SpotifyAppRemote mSpotifyAppRemote;
 
     private CurrentUser currentUser;
     private FirebaseFirestore db;
@@ -87,7 +96,49 @@ public class HomeActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
 
+        ConnectionParams connectionParams =
+                new ConnectionParams.Builder(CLIENT_ID)
+                        .setRedirectUri(REDIRECT_URI)
+                        .showAuthView(true)
+                        .build();
+
+        SpotifyAppRemote.connect(this, connectionParams,
+                new Connector.ConnectionListener() {
+                    public void onConnected(SpotifyAppRemote spotifyAppRemote) {
+                        mSpotifyAppRemote = spotifyAppRemote;
+                        connected();
+                    }
+
+                    public void onFailure(Throwable throwable) {
+                        Toast.makeText(HomeActivity.this, "Spotify listen error!",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
         chatListRecyclerAdapter.notifyDataSetChanged();
+    }
+
+    private void connected() {
+        mSpotifyAppRemote.getPlayerApi()
+                .subscribeToPlayerState()
+                .setEventCallback(playerState -> {
+                    currTrack = playerState.track;
+                    if (currTrack != null) {
+                        updateCurrentTrack();
+                    }
+                });
+    }
+
+    private void updateCurrentTrack() {
+        db.collection("userDetail").document(currentUser.getUser().geteMail()).update(
+                "currTrack",
+                currTrack.artist.name + "___" + currTrack.name,
+                "currTrackUri",
+                currTrack.uri
+        ).addOnSuccessListener(aVoid -> {
+            currentUser.getUser().setCurrTrack(currTrack.artist.name + " - " + currTrack.name);
+            currentUser.getUser().setCurrTrackUri(currTrack.uri);
+        }).addOnFailureListener(e -> Toast.makeText(this, "Track update error!",
+                Toast.LENGTH_LONG).show());
     }
 
     @Override
