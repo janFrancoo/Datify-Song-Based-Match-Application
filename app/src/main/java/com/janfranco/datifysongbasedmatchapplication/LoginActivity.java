@@ -5,7 +5,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteStatement;
 import android.graphics.Typeface;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
@@ -36,6 +40,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -47,11 +52,28 @@ public class LoginActivity extends AppCompatActivity {
     private ConstraintLayout layout;
     private TextView welcomeLabel, secondLabel, forgotPasswordText;
     private PopupWindow loadPopUp;
+    private SQLiteDatabase localDb;
+
+    // ToDo: Write currUser to localDb every time when app is closed
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        localDb = openOrCreateDatabase(Constants.DB_USER, Context.MODE_PRIVATE, null);
+        localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
+                Constants.TABLE_USER +
+                "(eMail VARCHAR PRIMARY KEY, username VARCHAR, avatarUrl VARCHAR, bio VARCHAR, " +
+                "gender VARCHAR, currTrack VARCHAR, currTrackUri VARCHAR, random INT, " +
+                "createDate LONG, currTrackIntervention BOOLEAN)");
+        localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
+                Constants.TABLE_BLOCKED +
+                "(eMail VARCHAR PRIMARY KEY, mail VARCHAR, username VARCHAR, avatarUrl VARCHAR, " +
+                "reason VARCHAR, createDate LONG)");
+        localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
+                Constants.TABLE_MATCH +
+                "(eMail VARCHAR PRIMARY KEY, mail VARCHAR)");
 
         layout = findViewById(R.id.loginLayout);
         layout.setVisibility(View.INVISIBLE);
@@ -154,7 +176,6 @@ public class LoginActivity extends AppCompatActivity {
         if (mAuth.getCurrentUser() != null)
             updateCurrentUserSingleton(mAuth.getCurrentUser().getEmail());
         else {
-            // Discovered the short way too late =)
             layout.setVisibility(View.VISIBLE);
             layout.startAnimation(headerAlpha());
             Constants.translation(welcomeLabel, Constants.DIR_X, -100);
@@ -285,26 +306,102 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void updateCurrentUserSingleton(String eMail) {
+        if (loadPopUp != null)
+            loadPopUp.dismiss();
+
+        String qUser = "SELECT * FROM " + Constants.TABLE_USER + " WHERE eMail = '" + eMail +"'";
+        String qMatch = "SELECT * FROM " + Constants.TABLE_MATCH + " WHERE eMail = '" + eMail + "'";
+        String qBlock = "SELECT * FROM " + Constants.TABLE_BLOCKED + " WHERE eMail = '" + eMail + "'";
+
+        Cursor cursor = localDb.rawQuery(qUser, null);
+        Cursor cursorMatch = localDb.rawQuery(qMatch, null);
+        Cursor cursorBlock = localDb.rawQuery(qBlock, null);
+
+        int cUsername = cursor.getColumnIndex("username");
+        int cAvatarUrl = cursor.getColumnIndex("avatarUrl");
+        int cBio = cursor.getColumnIndex("bio");
+        int cGender = cursor.getColumnIndex("gender");
+        int cCurrTrack = cursor.getColumnIndex("currTrack");
+        int cCurrTrackUri = cursor.getColumnIndex("currTrackUri");
+        int cRandom = cursor.getColumnIndex("random");
+        int cCreateDate = cursor.getColumnIndex("createDate");
+        int cCurrTrackIntervention = cursor.getColumnIndex("currTrackIntervention");
+
+        int cMatchMail = cursorMatch.getColumnIndex("mail");
+
+        int cBlockedMail = cursorBlock.getColumnIndex("mail");
+        int cBlockedUsername = cursorBlock.getColumnIndex("username");
+        int cBlockedAvatarUrl = cursorBlock.getColumnIndex("avatarUrl");
+        int cBlockedReason = cursorBlock.getColumnIndex("reason");
+        int cBlockedCreateDate = cursorBlock.getColumnIndex("createDate");
+
+        ArrayList<Block> blockedMails = new ArrayList<>();
+        ArrayList<String> matches = new ArrayList<>();
+
+        while (cursorMatch.moveToNext()) {
+            matches.add(cursorMatch.getString(cMatchMail));
+        }
+
+        while (cursorBlock.moveToNext()) {
+            blockedMails.add(new Block(
+                    cursorBlock.getString(cBlockedMail),
+                    cursorBlock.getString(cBlockedUsername),
+                    cursorBlock.getString(cBlockedAvatarUrl),
+                    cursorBlock.getString(cBlockedReason),
+                    cursorBlock.getLong(cBlockedCreateDate)
+            ));
+        }
+
+        while (cursor.moveToNext()) {
+            User user = new User(
+                    eMail,
+                    cursor.getString(cUsername),
+                    cursor.getString(cAvatarUrl),
+                    cursor.getString(cBio),
+                    cursor.getString(cGender),
+                    cursor.getString(cCurrTrack),
+                    cursor.getString(cCurrTrackUri),
+                    matches,
+                    blockedMails,
+                    cursor.getInt(cRandom),
+                    cursor.getLong(cCreateDate),
+                    (cursor.getInt(cCurrTrackIntervention) == 1)
+            );
+            CurrentUser.getInstance().setUser(user);
+        }
+        cursor.close();
+        cursorMatch.close();
+        cursorBlock.close();
+
+        boolean canIntent = true;
+        if (CurrentUser.getInstance().getUser() != null) {
+            Intent intentToHomeActivity = new Intent(LoginActivity.this, HomeActivity.class);
+            intentToHomeActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intentToHomeActivity);
+            Toast.makeText(LoginActivity.this, "Welcome, " +
+                    CurrentUser.getInstance().getUser().getUsername(), Toast.LENGTH_LONG).show();
+            canIntent = false;
+        }
+
         FirebaseFirestore db = FirebaseFirestore.getInstance();
+        boolean finalCanIntent = canIntent;
         db.collection("userDetail").document(eMail).get()
                 .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
                     public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        /*Map<String, Object> data = documentSnapshot.getData();
-                        if (data != null) {
-                            User user = new User((String) data.get("username"),
-                                    (String) data.get("eMail"),
-                                    (String) data.get("bio"));
-                            updateCurrentUser(user);
-                            intentToHomeActivity();
-                        }*/
                         User user = documentSnapshot.toObject(User.class);
                         assert user != null;
                         CurrentUser currentUser = CurrentUser.getInstance();
                         currentUser.setUser(user);
-                        Toast.makeText(LoginActivity.this, "Welcome, " + user.getUsername()
-                                , Toast.LENGTH_LONG).show();
-                        intentToHomeActivity();
+                        writeToLocalDb();
+                        if (finalCanIntent) {
+                            Intent intentToHomeActivity = new Intent(LoginActivity.this, HomeActivity.class);
+                            startActivity(intentToHomeActivity);
+                        }
+                        LoginActivity.this.finish();
+                        Toast.makeText(LoginActivity.this, "Welcome, " +
+                                CurrentUser.getInstance().getUser().getUsername(), Toast.LENGTH_LONG).show();
+
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -317,13 +414,64 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-    private void intentToHomeActivity() {
-        if (loadPopUp != null)
-            loadPopUp.dismiss();
-        Intent intentToHomeActivity = new Intent(LoginActivity.this, HomeActivity.class);
-        intentToHomeActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intentToHomeActivity);
-        finish();
+    private void writeToLocalDb() {
+        CurrentUser currentUser = CurrentUser.getInstance();
+        User currUser = currentUser.getUser();
+
+        String matchQuery = "REPLACE INTO " + Constants.TABLE_MATCH +
+                " (eMail, mail) VALUES (?, ?)";
+        for (int i=0; i<currUser.getMatches().size(); i++) {
+            String matchMail = currUser.getMatches().get(i);
+            SQLiteStatement sqLiteStatement = localDb.compileStatement(matchQuery);
+            sqLiteStatement.bindString(1, currUser.geteMail());
+            sqLiteStatement.bindString(2, matchMail);
+
+            try {
+                sqLiteStatement.execute();
+            } catch (Exception e) {
+                Log.d("LocalDBError", Objects.requireNonNull(e.getLocalizedMessage()));
+            }
+        }
+
+        String blockedQuery = "REPLACE INTO " + Constants.TABLE_BLOCKED +
+                " (eMail, mail, username, avatarUrl, reason, createDate) VALUES (?, ?, ?, ?, ?, ?)";
+        for (int i=0; i<currUser.getBlockedMails().size(); i++) {
+            Block blockedUser = currUser.getBlockedMails().get(i);
+            SQLiteStatement sqLiteStatement = localDb.compileStatement(blockedQuery);
+            sqLiteStatement.bindString(1, currUser.geteMail());
+            sqLiteStatement.bindString(2, blockedUser.getMail());
+            sqLiteStatement.bindString(3, blockedUser.getAvatarUrl());
+            sqLiteStatement.bindString(4, blockedUser.getReason());
+            sqLiteStatement.bindLong(5, blockedUser.getCreateDate());
+
+            try {
+                sqLiteStatement.execute();
+                Log.d("LocalDB", "Wrote successfully!");
+            } catch (Exception e) {
+                Log.d("LocalDBError", Objects.requireNonNull(e.getLocalizedMessage()));
+            }
+        }
+
+        String userQuery = "REPLACE INTO " + Constants.TABLE_USER + " (eMail, username, avatarUrl, " +
+                "bio, gender, currTrack, currTrackUri, random, createDate, currTrackIntervention) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        SQLiteStatement sqLiteStatement = localDb.compileStatement(userQuery);
+        sqLiteStatement.bindString(1, currUser.geteMail());
+        sqLiteStatement.bindString(2, currUser.getUsername());
+        sqLiteStatement.bindString(3, currUser.getAvatarUrl());
+        sqLiteStatement.bindString(4, currUser.getBio());
+        sqLiteStatement.bindString(5, currUser.getGender());
+        sqLiteStatement.bindString(6, currUser.getCurrTrack());
+        sqLiteStatement.bindString(7, currUser.getCurrTrackUri());
+        sqLiteStatement.bindLong(8, currUser.getRandom());
+        sqLiteStatement.bindLong(9, currUser.getCreateDate());
+        sqLiteStatement.bindLong(10, currUser.isCurrTrackIntervention() ? 1 : 0);
+
+        try {
+            sqLiteStatement.execute();
+        } catch (Exception e) {
+            Log.d("LocalDBError", Objects.requireNonNull(e.getLocalizedMessage()));
+        }
     }
 
     private Animation headerAlpha() {

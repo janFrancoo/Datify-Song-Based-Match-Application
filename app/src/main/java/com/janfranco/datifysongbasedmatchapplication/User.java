@@ -30,6 +30,22 @@ public class User {
         this.currTrackUri = "";
         this.currTrackIntervention = false;
     }
+    public User(String eMail, String username, String avatarUrl, String bio, String gender,
+                String currTrack, String currTrackUri, ArrayList<String> matches, ArrayList<Block> blockedMails,
+                int random, long createDate, boolean currTrackIntervention) {
+        this.eMail = eMail;
+        this.username = username;
+        this.avatarUrl = avatarUrl;
+        this.bio = bio;
+        this.gender = gender;
+        this.currTrack = currTrack;
+        this.currTrackUri = currTrackUri;
+        this.matches = matches;
+        this.blockedMails = blockedMails;
+        this.random = random;
+        this.createDate = createDate;
+        this.currTrackIntervention = currTrackIntervention;
+    }
 
     public String geteMail() {
         return eMail;
