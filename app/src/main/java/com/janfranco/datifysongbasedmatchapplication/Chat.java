@@ -16,12 +16,12 @@ public class Chat {
         this.avatar1Local = "";
         this.avatar2Local = "";
     }
-    Chat(String chatName, int basedOn, String username1, String username2,
+    Chat(String chatName, int basedOn, int status, String username1, String username2,
          String avatar1, String avatar2, String lastMessage, long createDate, long lastMessageDate) {
 
         this.chatName = chatName;
         this.basedOn = basedOn;
-        this.status = Constants.STATUS_NEW;
+        this.status = status;
 
         this.username1 = username1;
         this.username2 = username2;

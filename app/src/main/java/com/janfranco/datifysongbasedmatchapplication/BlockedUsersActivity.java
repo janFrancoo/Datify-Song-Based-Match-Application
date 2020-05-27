@@ -54,20 +54,30 @@ public class BlockedUsersActivity extends AppCompatActivity {
                     @Override public void onLongItemClick(View view, int position) {
                         Block block = blockedList.get(position);
                         db.collection("userDetail").document(currentUser.getUser().geteMail())
-                                .update("blockedMails", FieldValue.arrayRemove(block),
-                                        "matches", FieldValue.arrayUnion(block.getMail()))
+                                .update("blockedMails", FieldValue.arrayRemove(block))
                                 .addOnCompleteListener(task -> {
                                     if (task.isSuccessful()) {
                                         currentUser.getUser().getBlockedMails().remove(block);
-                                        currentUser.getUser().getMatches().add(block.getMail());
                                         blockedList.remove(block);
                                         adapter.notifyDataSetChanged();
-                                        finish();
                                     }
                                 });
+
+                        db.collection("chat").document(generateChatName(block.getMail()))
+                                .update("status", Constants.STATUS_NEW);
                     }
                 })
         );
+    }
+
+    private String generateChatName(String match) {
+        String chatName;
+        String currentUserMail = currentUser.getUser().geteMail();
+        if (currentUserMail.compareTo(match) < 0)
+            chatName = currentUserMail + "_" + match;
+        else
+            chatName = match + "_" + currentUserMail;
+        return chatName;
     }
 
 }

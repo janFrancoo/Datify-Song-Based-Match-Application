@@ -93,4 +93,8 @@ class Constants {
     static int FRUIT_LEMON = 1;
     static int FRUIT_WATERMELON = 2;
 
+    // Spotify
+    static final String CLIENT_ID = "fb4680b5b1384bcaaf3febd991797ecc";
+    static final String REDIRECT_URI = "com.janfranco.datifysongbasedmatchapplication://callback";
+
 }

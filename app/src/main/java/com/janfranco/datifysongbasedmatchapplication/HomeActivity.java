@@ -55,8 +55,6 @@ import java.util.Random;
 public class HomeActivity extends AppCompatActivity {
 
     private Track currTrack;
-    private static final String CLIENT_ID = "fb4680b5b1384bcaaf3febd991797ecc";
-    private static final String REDIRECT_URI = "com.janfranco.datifysongbasedmatchapplication://callback";
     private SpotifyAppRemote mSpotifyAppRemote;
 
     private CurrentUser currentUser;
@@ -77,9 +75,9 @@ public class HomeActivity extends AppCompatActivity {
         localDb = openOrCreateDatabase(Constants.DB_NAME, Context.MODE_PRIVATE, null);
         localDb.execSQL("CREATE TABLE IF NOT EXISTS " +
                 Constants.TABLE_CHAT +
-                "(chatName VARCHAR PRIMARY KEY, basedOn INT, username1 VARCHAR, username2 VARCHAR, " +
-                "avatar1 VARCHAR, avatar2 VARCHAR, lastMessage VARCHAR, lastMessageDate LONG, " +
-                "avatar1Local VARCHAR, avatar2Local VARCHAR)");
+                "(chatName VARCHAR PRIMARY KEY, basedOn INT, status INT, username1 VARCHAR, " +
+                "username2 VARCHAR, avatar1 VARCHAR, avatar2 VARCHAR, lastMessage VARCHAR, " +
+                "lastMessageDate LONG, avatar1Local VARCHAR, avatar2Local VARCHAR)");
 
         initialize();
 
@@ -97,8 +95,8 @@ public class HomeActivity extends AppCompatActivity {
         super.onStart();
 
         ConnectionParams connectionParams =
-                new ConnectionParams.Builder(CLIENT_ID)
-                        .setRedirectUri(REDIRECT_URI)
+                new ConnectionParams.Builder(Constants.CLIENT_ID)
+                        .setRedirectUri(Constants.REDIRECT_URI)
                         .showAuthView(true)
                         .build();
 
@@ -266,6 +264,7 @@ public class HomeActivity extends AppCompatActivity {
 
         int cName = cursor.getColumnIndex("chatName");
         int basedOn = cursor.getColumnIndex("basedOn");
+        int status = cursor.getColumnIndex("status");
         int username1 = cursor.getColumnIndex("username1");
         int username2 = cursor.getColumnIndex("username2");
         int avatar1 = cursor.getColumnIndex("avatar1");
@@ -276,9 +275,13 @@ public class HomeActivity extends AppCompatActivity {
         int avatar2Local = cursor.getColumnIndex("avatar2Local");
 
         while (cursor.moveToNext()) {
+            int statusFromLDB = cursor.getInt(status);
+            if (statusFromLDB == Constants.STATUS_CLOSED)
+                continue;
             Chat chat = new Chat(
                     cursor.getString(cName),
                     cursor.getInt(basedOn),
+                    statusFromLDB,
                     cursor.getString(username1),
                     cursor.getString(username2),
                     cursor.getString(avatar1),
@@ -313,17 +316,16 @@ public class HomeActivity extends AppCompatActivity {
                         ArrayList<String> matches = user.getMatches();
                         for (int i=0; i<matches.size(); i++) {
                             boolean get = true;
-                            String chatName = generateChatName(matches.get(i));
-                            for (int j=0; j<chats.size(); j++) {
-                                if (chats.get(j).getChatName().equals(chatName)) {
+                            for (int j=0; j<currentUser.getUser().getMatches().size(); j++) {
+                                if (currentUser.getUser().getMatches().get(j).equals(matches.get(i))) {
                                     get = false;
                                     break;
                                 }
                             }
-                            if (get) {
-                                getNewChatFromCloud(chatName);
-                            }
+                            if (get)
+                                getNewChatFromCloud(generateChatName(matches.get(i)));
                         }
+                        chatListRecyclerAdapter.notifyDataSetChanged();
                     }
 
                 });
@@ -334,9 +336,11 @@ public class HomeActivity extends AppCompatActivity {
                 .addOnSuccessListener(snapshot -> {
                     Chat chat = snapshot.toObject(Chat.class);
                     assert chat != null;
+                    if (chat.getStatus() == Constants.STATUS_CLOSED)
+                        return;
                     chats.add(0, chat);
+                    chatNames.add(chatName);
                     int idx = chats.indexOf(chat);
-                    chatListRecyclerAdapter.notifyDataSetChanged();
                     if (chat.getChatName().equals(currentUser.getCurrentChat())) {
                         if (chat.getUsername1().equals(currentUser.getUser().getUsername()))
                             notification(
@@ -420,23 +424,24 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     public static void writeToLocalDb(Chat c) {
-        String query = "REPLACE INTO " + Constants.TABLE_CHAT + "(chatName, basedOn, " +
+        String query = "REPLACE INTO " + Constants.TABLE_CHAT + "(chatName, basedOn, status, " +
                 "username1, username2, avatar1, avatar2, lastMessage, lastMessageDate, avatar1Local, avatar2Local) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         SQLiteStatement sqLiteStatement = localDb.compileStatement(query);
 
         sqLiteStatement.clearBindings();
         sqLiteStatement.bindString(1, c.getChatName());
         sqLiteStatement.bindLong(2, c.getBasedOn());
-        sqLiteStatement.bindString(3, c.getUsername1());
-        sqLiteStatement.bindString(4, c.getUsername2());
-        sqLiteStatement.bindString(5, c.getAvatar1());
-        sqLiteStatement.bindString(6, c.getAvatar2());
-        sqLiteStatement.bindString(7, c.getLastMessage());
-        sqLiteStatement.bindLong(8, c.getLastMessageDate());
-        sqLiteStatement.bindString(9, c.getAvatar1Local());
-        sqLiteStatement.bindString(10, c.getAvatar2Local());
+        sqLiteStatement.bindLong(3, c.getStatus());
+        sqLiteStatement.bindString(4, c.getUsername1());
+        sqLiteStatement.bindString(5, c.getUsername2());
+        sqLiteStatement.bindString(6, c.getAvatar1());
+        sqLiteStatement.bindString(7, c.getAvatar2());
+        sqLiteStatement.bindString(8, c.getLastMessage());
+        sqLiteStatement.bindLong(9, c.getLastMessageDate());
+        sqLiteStatement.bindString(10, c.getAvatar1Local());
+        sqLiteStatement.bindString(11, c.getAvatar2Local());
 
         try {
             sqLiteStatement.execute();
@@ -581,6 +586,7 @@ public class HomeActivity extends AppCompatActivity {
             chat = new Chat(
                     chatName,
                     Constants.BASED_RANDOM,
+                    Constants.STATUS_NEW,
                     currentUser.getUser().getUsername(),
                     user.getUsername(),
                     currentUser.getUser().getAvatarUrl(),
@@ -593,6 +599,7 @@ public class HomeActivity extends AppCompatActivity {
             chat = new Chat(
                     chatName,
                     Constants.BASED_RANDOM,
+                    Constants.STATUS_NEW,
                     user.getUsername(),
                     currentUser.getUser().getUsername(),
                     user.getAvatarUrl(),
@@ -690,7 +697,9 @@ public class HomeActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onBitmapFailed(Exception e, Drawable errorDrawable) { }
+                public void onBitmapFailed(Exception e, Drawable errorDrawable) {
+                    writeToLocalDb(chat);
+                }
 
                 @Override
                 public void onPrepareLoad(Drawable placeHolderDrawable) { }
@@ -706,7 +715,9 @@ public class HomeActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onBitmapFailed(Exception e, Drawable errorDrawable) { }
+                public void onBitmapFailed(Exception e, Drawable errorDrawable) {
+                    writeToLocalDb(chat);
+                }
 
                 @Override
                 public void onPrepareLoad(Drawable placeHolderDrawable) { }

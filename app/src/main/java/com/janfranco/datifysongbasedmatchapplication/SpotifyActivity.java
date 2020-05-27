@@ -41,8 +41,6 @@ import java.util.Objects;
 public class SpotifyActivity extends AppCompatActivity {
 
     private Track currTrack;
-    private static final String CLIENT_ID = "fb4680b5b1384bcaaf3febd991797ecc";
-    private static final String REDIRECT_URI = "com.janfranco.datifysongbasedmatchapplication://callback";
     private SpotifyAppRemote mSpotifyAppRemote;
 
     private FirebaseFirestore db;
@@ -141,8 +139,8 @@ public class SpotifyActivity extends AppCompatActivity {
         super.onStart();
 
         ConnectionParams connectionParams =
-                new ConnectionParams.Builder(CLIENT_ID)
-                        .setRedirectUri(REDIRECT_URI)
+                new ConnectionParams.Builder(Constants.CLIENT_ID)
+                        .setRedirectUri(Constants.REDIRECT_URI)
                         .showAuthView(true)
                         .build();
 
@@ -393,6 +391,7 @@ public class SpotifyActivity extends AppCompatActivity {
             chat = new Chat(
               chatName,
               Constants.BASED_SONG,
+              Constants.STATUS_NEW,
               currentUser.getUser().getUsername(),
               user.getUsername(),
               currentUser.getUser().getAvatarUrl(),
@@ -405,6 +404,7 @@ public class SpotifyActivity extends AppCompatActivity {
             chat = new Chat(
                     chatName,
                     Constants.BASED_SONG,
+                    Constants.STATUS_NEW,
                     user.getUsername(),
                     currentUser.getUser().getUsername(),
                     user.getAvatarUrl(),

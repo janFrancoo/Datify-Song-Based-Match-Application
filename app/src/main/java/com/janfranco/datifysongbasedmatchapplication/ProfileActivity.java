@@ -12,7 +12,6 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -85,14 +84,10 @@ public class ProfileActivity extends AppCompatActivity {
         profileTrackList.setAdapter(adapter);
 
         Button btnGoBack = findViewById(R.id.profileBackBtn);
-        btnGoBack.setOnClickListener(v -> {
-            finish();
-        });
+        btnGoBack.setOnClickListener(v -> finish());
 
         Button blockBtn = findViewById(R.id.profileBlockBtn);
-        blockBtn.setOnClickListener(v -> {
-            blockPopUp();
-        });
+        blockBtn.setOnClickListener(v -> blockPopUp());
     }
 
     @SuppressLint("SetTextI18n")
@@ -129,9 +124,9 @@ public class ProfileActivity extends AppCompatActivity {
                 });
     }
 
-    private void removeChatFromLocalDb(String chatName) {
-        String query = "DELETE FROM " + Constants.TABLE_CHAT + " WHERE chatName = '" +
-                chatName + "'";
+    private void updateLocalDb() {
+        String query = "UPDATE " + Constants.TABLE_CHAT + " SET status = " + Constants.STATUS_CLOSED +
+                " WHERE chatName = '" + chatName + "'";
         localDb.execSQL(query);
 
         Toast.makeText(this, "You can remove block and access chat from settings.",
@@ -141,6 +136,7 @@ public class ProfileActivity extends AppCompatActivity {
         finish();
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void blockPopUp() {
         LayoutInflater inflater = (LayoutInflater)
                 getSystemService(LAYOUT_INFLATER_SERVICE);
@@ -166,16 +162,19 @@ public class ProfileActivity extends AppCompatActivity {
                     createDate
             );
             db.collection("userDetail").document(currentUser.getUser().geteMail())
-                    .update("blockedMails", FieldValue.arrayUnion(block),
-                            "matches", FieldValue.arrayRemove(mail))
+                    .update("blockedMails", FieldValue.arrayUnion(block))
                     .addOnCompleteListener(task -> {
                         if (task.isSuccessful()) {
                             currentUser.getUser().getBlockedMails().add(block);
-                            currentUser.getUser().getMatches().remove(mail);
-                            removeChatFromLocalDb(chatName);
                         } else {
                             Toast.makeText(this, "Blocking failed!", Toast.LENGTH_SHORT).show();
                         }
+                    });
+            db.collection("chat").document(chatName)
+                    .update("status", Constants.STATUS_CLOSED)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful())
+                            updateLocalDb();
                     });
         });
 
@@ -187,13 +186,9 @@ public class ProfileActivity extends AppCompatActivity {
         popupWindow.showAtLocation(getWindow().getDecorView().findViewById(android.R.id.content),
                 Gravity.CENTER, 0, 0);
 
-        popupView.setOnTouchListener(new View.OnTouchListener() {
-            @SuppressLint("ClickableViewAccessibility")
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                popupWindow.dismiss();
-                return true;
-            }
+        popupView.setOnTouchListener((v, event) -> {
+            popupWindow.dismiss();
+            return true;
         });
     }
 
