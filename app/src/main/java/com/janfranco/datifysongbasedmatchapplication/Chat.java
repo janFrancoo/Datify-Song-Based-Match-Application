@@ -48,7 +48,8 @@ public class Chat {
                 this.lastMessage.equals(chat.lastMessage) &&
                 this.lastMessageDate == chat.lastMessageDate &&
                 this.avatar1.equals(chat.avatar1) &&
-                this.avatar2.equals(chat.avatar2);
+                this.avatar2.equals(chat.avatar2) &&
+                this.status == chat.status;
     }
 
     public String getChatName() {

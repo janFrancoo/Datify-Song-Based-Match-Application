@@ -1,2 +1,2 @@
 rootProject.name='Datify Song Based Match Application'
-include ':app', ':spotify-app-remote'
+include ':app', ':spotify-app-remote', ':spotify-app-remote-release-0.7.0'

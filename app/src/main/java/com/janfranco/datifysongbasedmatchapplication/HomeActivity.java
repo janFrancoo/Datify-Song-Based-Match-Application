@@ -396,7 +396,10 @@ public class HomeActivity extends AppCompatActivity {
                                          else
                                              chat.setAvatar1Local(oldChat.getAvatar1Local());
                                      }
-                                     chats.set(i, chat);
+                                     if (chat.getStatus() == Constants.STATUS_CLOSED)
+                                         chats.remove(i);
+                                     else
+                                        chats.set(i, chat);
                                      if (!chat.getChatName().equals(currentUser.getCurrentChat())) {
                                          if (chat.getUsername1().equals(currentUser.getUser().getUsername()))
                                              notification(
